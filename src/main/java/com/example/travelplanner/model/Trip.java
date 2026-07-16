@@ -1,11 +1,22 @@
 package com.example.travelplanner.model;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "trips")
 public class Trip {
 
+    @Id
     private String id;
+
     private String name;
     private String destination;
     private String startDate;
@@ -13,9 +24,16 @@ public class Trip {
     private double budget;
     private String notes;
     private String destinationNotes;
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ItineraryItem> itinerary = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Expense> expenses = new ArrayList<>();
+
+    @Embedded
     private DestinationInfo destinationInfo;
+
     private String createdAt;
 
     public Trip() {
@@ -115,5 +133,15 @@ public class Trip {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void addItineraryItem(ItineraryItem item) {
+        itinerary.add(item);
+        item.setTrip(this);
+    }
+
+    public void addExpense(Expense expense) {
+        expenses.add(expense);
+        expense.setTrip(this);
     }
 }

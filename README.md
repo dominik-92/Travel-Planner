@@ -1,6 +1,6 @@
 # Travel Planner - Spring Boot Application
 
-This is a Spring Boot implementation of the Travel Planner application. It provides a REST API backend with a web-based frontend for managing travel plans, itineraries, expenses, and destination information.
+A Spring Boot REST API backend with a web-based frontend for managing travel plans, itineraries, expenses, and destination information. Data is persisted in a PostgreSQL database.
 
 ## Project Structure
 
@@ -14,25 +14,30 @@ Travel Planner/
 │       │   │   └── TripController.java            # REST API endpoints
 │       │   ├── service/
 │       │   │   └── TripService.java               # Business logic
+│       │   ├── repository/
+│       │   │   └── TripRepository.java            # Spring Data JPA repository
 │       │   └── model/
-│       │       ├── Trip.java                      # Trip entity
-│       │       ├── ItineraryItem.java             # Itinerary item entity
-│       │       ├── Expense.java                   # Expense entity
-│       │       └── DestinationInfo.java           # Destination information entity
+│       │       ├── Trip.java                      # Trip JPA entity
+│       │       ├── ItineraryItem.java             # ItineraryItem JPA entity
+│       │       ├── Expense.java                   # Expense JPA entity
+│       │       └── DestinationInfo.java           # Embeddable destination info
 │       └── resources/
 │           ├── static/
-│           │   ├── index.html                     # Frontend HTML
+│           │   ├── index.html                     # Frontend HTML (served by Spring Boot)
 │           │   ├── css/styles.css                 # Frontend styles
 │           │   └── js/app.js                      # Frontend JavaScript
 │           └── application.properties             # Spring configuration
+├── docker-compose.yml                              # PostgreSQL Docker container
 └── pom.xml                                         # Maven configuration
 ```
 
 ## Technology Stack
 
-- **Backend**: Spring Boot 3.2.7
+- **Backend**: Spring Boot 3.4.1
 - **Java Version**: 25
 - **Build Tool**: Maven
+- **Database**: PostgreSQL 16 (via Docker)
+- **ORM**: Spring Data JPA / Hibernate
 - **Frontend**: HTML, CSS, JavaScript (Vanilla)
 
 ## Getting Started
@@ -40,39 +45,49 @@ Travel Planner/
 ### Prerequisites
 
 - Java 25 or higher
-- Maven 3.6+ (or use the Maven wrapper if available)
+- Maven 3.6+
+- Docker & Docker Compose
 
 ### Running the Application
 
-1. **Navigate to the project directory:**
-   ```bash
-   cd "c:\Users\Dominik\Projekty Demo\Travel Planner"
-   ```
+**1. Start the PostgreSQL database:**
 
-2. **Build the project:**
-   ```bash
-   mvn clean package
-   ```
+```bash
+docker-compose up -d
+```
 
-3. **Run the Spring Boot application:**
-   ```bash
-   mvn spring-boot:run
-   ```
-   
-   Or if a JAR file was built:
-   ```bash
-   java -jar target/travel-planner-0.0.1-SNAPSHOT.jar
-   ```
+This starts PostgreSQL on port 5432. Data is persisted in a Docker volume.
 
-4. **Access the application:**
-   Open your browser and navigate to:
-   ```
-   http://localhost:8080
-   ```
+**2. Build and run the application:**
+
+```bash
+mvn clean package -DskipTests
+mvn spring-boot:run
+```
+
+**3. Access the application:**
+
+Open your browser and navigate to:
+
+```
+http://localhost:8080
+```
+
+The application auto-creates database tables on first startup via Hibernate's `ddl-auto=update`.
+
+**4. Stop the database (when done):**
+
+```bash
+docker-compose down
+```
+
+The data volume is preserved. To also delete all data:
+
+```bash
+docker-compose down -v
+```
 
 ## API Endpoints
-
-The application provides the following REST API endpoints:
 
 ### Trips
 - `GET /api/trips` - Get all trips
@@ -104,29 +119,24 @@ The application provides the following REST API endpoints:
 
 ## Data Storage
 
-Currently, the application stores data in-memory using a `LinkedHashMap`. This means data will be lost when the application restarts. For persistent storage, consider integrating a database like:
-- H2 (for development)
-- PostgreSQL
-- MySQL
-- MongoDB
+The application uses **PostgreSQL** running in a Docker container with **Spring Data JPA** for persistence. All trips, itinerary items, and expenses are stored in the database and survive application restarts.
 
-## Development Notes
+Database tables are auto-generated from JPA entity annotations. Key relationships:
 
-- The application uses Spring Boot's auto-configuration
-- All business logic is encapsulated in the `TripService` class
-- The frontend communicates with the backend via JSON REST APIs
-- Static resources (HTML, CSS, JS) are served from `src/main/resources/static/`
+- `trips` table — stores trip metadata and embedded destination info
+- `itinerary_items` table — `@OneToMany` from trips, cascaded deletes
+- `expenses` table — `@OneToMany` from trips, cascaded deletes
 
-## Building a JAR File
+### Database Configuration
 
-To create a standalone JAR file that can be run independently:
+Default credentials (see `application.properties` and `docker-compose.yml`):
 
-```bash
-mvn clean package
-java -jar target/travel-planner-0.0.1-SNAPSHOT.jar
-```
-
-The JAR file will include all dependencies and static resources.
+| Setting   | Value            |
+|-----------|------------------|
+| Host      | `localhost:5432` |
+| Database  | `travelplanner`  |
+| Username  | `travelplanner`  |
+| Password  | `travelplanner`  |
 
 ## License
 

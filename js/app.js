@@ -1,4 +1,4 @@
-const STORAGE_KEY = "travel-planner-trips";
+const API_BASE = "http://localhost:8080/api/trips";
 
 const tripForm = document.getElementById("trip-form");
 const itineraryForm = document.getElementById("itinerary-form");
@@ -31,13 +31,24 @@ let state = {
   activeTripId: null,
 };
 
-function loadTrips() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  state.trips = raw ? JSON.parse(raw) : [];
+async function fetchJson(url, options) {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!response.ok) {
+    const errorMessage = await response.text();
+    throw new Error(errorMessage || "Request failed");
+  }
+  return response.status === 204 ? null : response.json();
 }
 
-function saveTrips() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.trips));
+async function loadTrips() {
+  try {
+    state.trips = await fetchJson(API_BASE, { method: "GET" });
+  } catch {
+    state.trips = [];
+  }
 }
 
 function formatCurrency(value) {
@@ -112,7 +123,6 @@ function showTripDetailsPanel(show) {
 function openTripDetails(tripId) {
   state.activeTripId = tripId;
   renderTripDetails();
-  saveTrips();
 }
 
 function renderTripDetails() {
@@ -250,70 +260,26 @@ function renderDestinationInfo(trip) {
   destinationTips.textContent = trip.destinationInfo?.tips || "N/A";
 }
 
-function removeItineraryItem(tripId, itemId) {
-  const trip = state.trips.find((entry) => entry.id === tripId);
-  if (!trip) return;
-  trip.itinerary = trip.itinerary.filter((item) => item.id !== itemId);
-  saveTrips();
-  renderTripDetails();
+async function removeItineraryItem(tripId, itemId) {
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${tripId}/itinerary/${itemId}`, { method: "DELETE" });
+    const index = state.trips.findIndex((t) => t.id === tripId);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
-function removeExpense(tripId, expenseId) {
-  const trip = state.trips.find((entry) => entry.id === tripId);
-  if (!trip) return;
-  trip.expenses = trip.expenses.filter((item) => item.id !== expenseId);
-  saveTrips();
-  renderTripDetails();
-}
-
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function buildDestinationInfo(destination) {
-  const normalized = destination.trim().toLowerCase();
-  const basicInfo = {
-    weather: "Check local reports for the latest forecast.",
-    currency: "Local currency may vary by country.",
-    tips:
-      "Bring comfortable shoes, stay hydrated, and verify transport options in advance.",
-  };
-
-  const mapping = [
-    {
-      pattern: /(paris|france|europe)/i,
-      weather: "Mild and changeable – pack a light layer.",
-      currency: "Euro (€)",
-      tips: "Book museums early and use metro passes for savings.",
-    },
-    {
-      pattern: /(london|uk|england|britain)/i,
-      weather: "Unpredictable weather – carry a compact umbrella.",
-      currency: "Pound Sterling (£)",
-      tips: "Plan around tube hours and enjoy pub meals in the evening.",
-    },
-    {
-      pattern: /(new york|usa|united states|america)/i,
-      weather: "Seasonal: check forecast before packing.",
-      currency: "US Dollar ($)",
-      tips: "Buy transit cards ahead and reserve popular attractions early.",
-    },
-    {
-      pattern: /(tokyo|japan)/i,
-      weather: "Often humid in summer; cool in autumn.",
-      currency: "Japanese Yen (¥)",
-      tips: "Carry cash for small shops and follow local etiquette.",
-    },
-    {
-      pattern: /(sydney|australia)/i,
-      weather: "Sunny days are common; sunscreen is essential.",
-      currency: "Australian Dollar (A$)",
-      tips: "Respect wildlife and plan for longer travel distances.",
-    },
-  ];
-
-  const matched = mapping.find((entry) => entry.pattern.test(normalized));
-  return matched || basicInfo;
+async function removeExpense(tripId, expenseId) {
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${tripId}/expenses/${expenseId}`, { method: "DELETE" });
+    const index = state.trips.findIndex((t) => t.id === tripId);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
 function resetTripForm() {
@@ -321,7 +287,7 @@ function resetTripForm() {
   document.getElementById("budget").value = 0;
 }
 
-function createTrip(event) {
+async function createTrip(event) {
   event.preventDefault();
   const formData = new FormData(tripForm);
   const name = formData.get("tripName").trim();
@@ -336,29 +302,30 @@ function createTrip(event) {
   }
 
   const trip = {
-    id: generateId(),
     name,
     destination,
     startDate,
     endDate,
     budget: Number.isFinite(budget) ? budget : 0,
     notes,
-    destinationNotes: notes,
-    itinerary: [],
-    expenses: [],
-    destinationInfo: null,
-    createdAt: new Date().toISOString(),
   };
 
-  state.trips.push(trip);
-  saveTrips();
-  renderTrips();
-  updateTripSummary();
-  resetTripForm();
-  openTripDetails(trip.id);
+  try {
+    const created = await fetchJson(API_BASE, {
+      method: "POST",
+      body: JSON.stringify(trip),
+    });
+    state.trips.push(created);
+    renderTrips();
+    updateTripSummary();
+    resetTripForm();
+    openTripDetails(created.id);
+  } catch {
+    // ignore
+  }
 }
 
-function addItineraryItem(event) {
+async function addItineraryItem(event) {
   event.preventDefault();
   const trip = getActiveTrip();
   if (!trip) return;
@@ -370,20 +337,21 @@ function addItineraryItem(event) {
 
   if (!day || !time || !title) return;
 
-  trip.itinerary.push({
-    id: generateId(),
-    day,
-    time,
-    title,
-    description,
-  });
-
-  saveTrips();
-  renderTripDetails();
-  itineraryForm.reset();
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/itinerary`, {
+      method: "POST",
+      body: JSON.stringify({ day, time, title, description }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+    itineraryForm.reset();
+  } catch {
+    // ignore
+  }
 }
 
-function addExpense(event) {
+async function addExpense(event) {
   event.preventDefault();
   const trip = getActiveTrip();
   if (!trip) return;
@@ -394,58 +362,84 @@ function addExpense(event) {
 
   if (!category || !Number.isFinite(amount) || amount <= 0) return;
 
-  trip.expenses.push({
-    id: generateId(),
-    category,
-    amount,
-    description,
-    addedAt: new Date().toISOString(),
-  });
-
-  saveTrips();
-  renderTripDetails();
-  expenseForm.reset();
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/expenses`, {
+      method: "POST",
+      body: JSON.stringify({ category, amount, description }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+    expenseForm.reset();
+  } catch {
+    // ignore
+  }
 }
 
-function loadDestinationInfo() {
+async function loadDestinationInfo() {
   const trip = getActiveTrip();
   if (!trip) return;
-  trip.destinationInfo = buildDestinationInfo(trip.destination);
-  saveTrips();
-  renderTripDetails();
+
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/destination-info`, { method: "POST" });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
-function saveTravelerNotes() {
+async function saveTravelerNotes() {
   const trip = getActiveTrip();
   if (!trip) return;
-  trip.destinationNotes = destinationNotes.value.trim();
-  saveTrips();
-  renderTripDetails();
+
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ destinationNotes: destinationNotes.value.trim() }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
-function deleteActiveTrip() {
+async function deleteActiveTrip() {
   if (!state.activeTripId) return;
-  state.trips = state.trips.filter((trip) => trip.id !== state.activeTripId);
-  state.activeTripId = null;
-  saveTrips();
-  renderTrips();
-  updateTripSummary();
-  showTripDetailsPanel(false);
+
+  try {
+    await fetchJson(`${API_BASE}/${state.activeTripId}`, { method: "DELETE" });
+    state.trips = state.trips.filter((trip) => trip.id !== state.activeTripId);
+    state.activeTripId = null;
+    renderTrips();
+    updateTripSummary();
+    showTripDetailsPanel(false);
+  } catch {
+    // ignore
+  }
 }
 
-function exportTrips() {
-  const data = JSON.stringify(state.trips, null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "travel-plans.json";
-  anchor.click();
-  URL.revokeObjectURL(url);
+async function exportTrips() {
+  try {
+    const trips = await fetchJson(API_BASE, { method: "GET" });
+    const data = JSON.stringify(trips, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "travel-plans.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert("Failed to export trips. Is the backend running?");
+  }
 }
 
-function init() {
-  loadTrips();
+async function init() {
+  await loadTrips();
   renderTrips();
   updateTripSummary();
 

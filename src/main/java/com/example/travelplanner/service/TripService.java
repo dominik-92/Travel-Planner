@@ -4,31 +4,34 @@ import com.example.travelplanner.model.DestinationInfo;
 import com.example.travelplanner.model.Expense;
 import com.example.travelplanner.model.ItineraryItem;
 import com.example.travelplanner.model.Trip;
+import com.example.travelplanner.repository.TripRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
+@Transactional
 public class TripService {
 
-    private final Map<String, Trip> trips = new LinkedHashMap<>();
+    private final TripRepository tripRepository;
 
-    public List<Trip> findAll() {
-        return new ArrayList<>(trips.values());
+    public TripService(TripRepository tripRepository) {
+        this.tripRepository = tripRepository;
     }
 
+    @Transactional(readOnly = true)
+    public List<Trip> findAll() {
+        return tripRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
     public Trip findById(String id) {
-        var trip = trips.get(id);
-        if (trip == null) {
-            throw new NoSuchElementException("Trip not found");
-        }
-        return trip;
+        return tripRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Trip not found"));
     }
 
     public Trip createTrip(Trip trip) {
@@ -41,63 +44,61 @@ public class TripService {
         if (trip.getDestinationNotes() == null) {
             trip.setDestinationNotes(trip.getNotes());
         }
-        if (trip.getItinerary() == null) {
-            trip.setItinerary(new ArrayList<>());
-        }
-        if (trip.getExpenses() == null) {
-            trip.setExpenses(new ArrayList<>());
-        }
-        trips.put(trip.getId(), trip);
-        return trip;
+        return tripRepository.save(trip);
     }
 
     public void deleteTrip(String id) {
-        trips.remove(id);
+        tripRepository.deleteById(id);
     }
 
     public Trip addItineraryItem(String tripId, ItineraryItem item) {
         var trip = findById(tripId);
-        var finalItem = (item.id() == null || item.id().isBlank())
-                ? new ItineraryItem(generateId(), item.day(), item.time(), item.title(), item.description())
+        var finalItem = (item.getId() == null || item.getId().isBlank())
+                ? new ItineraryItem(generateId(), item.getDay(), item.getTime(), item.getTitle(), item.getDescription())
                 : item;
-        trip.getItinerary().add(finalItem);
+        trip.addItineraryItem(finalItem);
+        tripRepository.save(trip);
         return trip;
     }
 
     public Trip removeItineraryItem(String tripId, String itemId) {
         var trip = findById(tripId);
-        trip.setItinerary(new ArrayList<>(trip.getItinerary().stream()
-                .filter(item -> !item.id().equals(itemId))
-                .toList()));
+        trip.getItinerary().removeIf(item -> item.getId().equals(itemId));
+        tripRepository.save(trip);
         return trip;
     }
 
     public Trip addExpense(String tripId, Expense expense) {
         var trip = findById(tripId);
-        var finalExpense = (expense.id() == null || expense.id().isBlank())
-                ? new Expense(generateId(), expense.category(), expense.amount(), expense.description(), expense.addedAt())
-                : expense;
-        trip.getExpenses().add(finalExpense);
+        if (expense.getId() == null || expense.getId().isBlank()) {
+            expense = new Expense(generateId(), expense.getCategory(), expense.getAmount(), expense.getDescription(), expense.getAddedAt());
+        }
+        if (expense.getAddedAt() == null || expense.getAddedAt().isBlank()) {
+            expense.setAddedAt(Instant.now().toString());
+        }
+        trip.addExpense(expense);
+        tripRepository.save(trip);
         return trip;
     }
 
     public Trip removeExpense(String tripId, String expenseId) {
         var trip = findById(tripId);
-        trip.setExpenses(new ArrayList<>(trip.getExpenses().stream()
-                .filter(expense -> !expense.id().equals(expenseId))
-                .toList()));
+        trip.getExpenses().removeIf(expense -> expense.getId().equals(expenseId));
+        tripRepository.save(trip);
         return trip;
     }
 
     public Trip loadDestinationInfo(String tripId) {
         var trip = findById(tripId);
         trip.setDestinationInfo(buildDestinationInfo(trip.getDestination()));
+        tripRepository.save(trip);
         return trip;
     }
 
     public Trip updateDestinationNotes(String tripId, String destinationNotes) {
         var trip = findById(tripId);
         trip.setDestinationNotes(destinationNotes);
+        tripRepository.save(trip);
         return trip;
     }
 
