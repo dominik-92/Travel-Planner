@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Planner</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-grid">
+        <div>
+          <h1>Travel Planner</h1>
+          <p>Plan trips, manage itineraries, track budgets, and save destination notes.</p>
+        </div>
+        <button id="export-data-button" class="btn-secondary">Export Trips</button>
+      </div>
+    </header>
+
+    <main class="container grid-layout">
+      <section class="panel panel-form">
+        <h2>Create a New Trip</h2>
+        <form id="trip-form">
+          <div class="field-group">
+            <label for="trip-name">Trip Name</label>
+            <input id="trip-name" name="tripName" type="text" placeholder="Weekend in Paris" required />
+          </div>
+          <div class="field-group">
+            <label for="destination">Destination</label>
+            <input id="destination" name="destination" type="text" placeholder="Destination city or region" required />
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label for="start-date">Start Date</label>
+              <input id="start-date" name="startDate" type="date" required />
+            </div>
+            <div class="field-group">
+              <label for="end-date">End Date</label>
+              <input id="end-date" name="endDate" type="date" required />
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="budget">Budget (€)</label>
+            <input id="budget" name="budget" type="number" min="0" value="0" required />
+          </div>
+          <div class="field-group">
+            <label for="notes">Destination Notes</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Add travel tips, packing reminders, or notes"></textarea>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="btn-primary">Add Trip</button>
+            <button type="reset" class="btn-secondary">Reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel panel-dashboard">
+        <div class="section-header">
+          <h2>Trips Dashboard</h2>
+          <div id="trip-summary">No trips created yet.</div>
+        </div>
+        <div id="trips-list" class="trip-list"></div>
+      </section>
+
+      <section class="panel panel-details hidden" id="trip-details-panel">
+        <div class="section-header">
+          <h2>Trip Details</h2>
+          <button id="delete-trip-button" class="btn-danger">Delete Trip</button>
+        </div>
+
+        <div id="active-trip-card" class="card"></div>
+
+        <div class="sub-sections">
+          <div class="panel nested-panel">
+            <h3>Itinerary</h3>
+            <form id="itinerary-form" class="small-form">
+              <div class="field-row">
+                <div class="field-group">
+                  <label for="itinerary-day">Day</label>
+                  <select id="itinerary-day" name="itineraryDay"></select>
+                </div>
+                <div class="field-group">
+                  <label for="itinerary-time">Time</label>
+                  <input id="itinerary-time" name="itineraryTime" type="time" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="itinerary-title">Activity</label>
+                <input id="itinerary-title" name="itineraryTitle" type="text" placeholder="Museum visit, dinner, hike…" required />
+              </div>
+              <div class="field-group">
+                <label for="itinerary-description">Description</label>
+                <input id="itinerary-description" name="itineraryDescription" type="text" placeholder="Add details for the activity" />
+              </div>
+              <button type="submit" class="btn-primary btn-full">Add Itinerary Item</button>
+            </form>
+
+            <div id="itinerary-list" class="list-group"></div>
+          </div>
+
+          <div class="panel nested-panel">
+            <h3>Budget Tracker</h3>
+            <div class="budget-summary">
+              <div class="budget-label">Budget</div>
+              <div id="budget-total" class="budget-value">€0</div>
+            </div>
+            <div class="progress-bar">
+              <div id="budget-progress" class="progress-fill"></div>
+            </div>
+            <div class="budget-details">
+              <span id="budget-spent">Spent: €0</span>
+              <span id="budget-remaining">Remaining: €0</span>
+            </div>
+
+            <form id="expense-form" class="small-form">
+              <div class="field-group">
+                <label for="expense-category">Category</label>
+                <select id="expense-category" name="expenseCategory">
+                  <option value="Accommodation">Accommodation</option>
+                  <option value="Food">Food</option>
+                  <option value="Transport">Transport</option>
+                  <option value="Activities">Activities</option>
+                  <option value="Misc">Misc</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="expense-amount">Amount (€)</label>
+                <input id="expense-amount" name="expenseAmount" type="number" min="0" step="0.01" required />
+              </div>
+              <div class="field-group">
+                <label for="expense-description">Description</label>
+                <input id="expense-description" name="expenseDescription" type="text" placeholder="Hotel, lunch, metro ticket…" />
+              </div>
+              <button type="submit" class="btn-primary btn-full">Add Expense</button>
+            </form>
+
+            <div id="expense-list" class="list-group"></div>
+          </div>
+        </div>
+
+        <div class="panel nested-panel">
+          <h3>Destination Information</h3>
+          <div class="field-row">
+            <button id="load-destination-info" class="btn-secondary">Load Recommended Info</button>
+            <button id="save-notes-button" class="btn-secondary">Save Notes</button>
+          </div>
+          <div class="destination-card">
+            <div class="destination-info-grid">
+              <div>
+                <h4>Weather</h4>
+                <p id="destination-weather">N/A</p>
+              </div>
+              <div>
+                <h4>Currency</h4>
+                <p id="destination-currency">N/A</p>
+              </div>
+              <div>
+                <h4>Tips</h4>
+                <p id="destination-tips">N/A</p>
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="destination-notes">Traveler Notes</label>
+              <textarea id="destination-notes" rows="4" placeholder="Add packing notes, reminders, or local tips"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Travel Planner - Save trips locally and manage every detail from one page.</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
