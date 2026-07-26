@@ -1,9 +1,29 @@
-const API_BASE = "/api/trips";
+const API_BASE = "http://localhost:8080/api/trips";
+
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  window.location.href = "login.html";
+}
+
+function checkAuth() {
+  if (!getToken()) {
+    window.location.href = "login.html";
+    return false;
+  }
+  return true;
+}
 
 const tripForm = document.getElementById("trip-form");
 const itineraryForm = document.getElementById("itinerary-form");
 const expenseForm = document.getElementById("expense-form");
 const exportButton = document.getElementById("export-data-button");
+const logoutButton = document.getElementById("logout-button");
+const usernameDisplay = document.getElementById("username-display");
 
 const tripsList = document.getElementById("trips-list");
 const tripSummary = document.getElementById("trip-summary");
@@ -32,23 +52,30 @@ let state = {
 };
 
 async function fetchJson(url, options) {
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
-
+  const token = getToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options?.headers || {}),
+  };
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401 || response.status === 403) {
+    logout();
+    return;
+  }
   if (!response.ok) {
     const errorMessage = await response.text();
     throw new Error(errorMessage || "Request failed");
   }
-
   return response.status === 204 ? null : response.json();
 }
 
 async function loadTrips() {
-  state.trips = await fetchJson(API_BASE, { method: "GET" });
+  try {
+    state.trips = await fetchJson(API_BASE, { method: "GET" });
+  } catch {
+    state.trips = [];
+  }
 }
 
 function formatCurrency(value) {
@@ -120,18 +147,9 @@ function showTripDetailsPanel(show) {
   tripDetailsPanel.classList.toggle("hidden", !show);
 }
 
-async function openTripDetails(tripId) {
+function openTripDetails(tripId) {
   state.activeTripId = tripId;
-  const trip = await fetchJson(`${API_BASE}/${tripId}`, { method: "GET" });
-  if (trip) {
-    const index = state.trips.findIndex((entry) => entry.id === trip.id);
-    if (index >= 0) {
-      state.trips[index] = trip;
-    } else {
-      state.trips.push(trip);
-    }
-    renderTripDetails();
-  }
+  renderTripDetails();
 }
 
 function renderTripDetails() {
@@ -174,7 +192,6 @@ function renderItinerary(trip) {
   }
 
   trip.itinerary
-    .slice()
     .sort((a, b) => a.day - b.day || a.time.localeCompare(b.time))
     .forEach((item) => {
       const itemElement = document.createElement("div");
@@ -192,7 +209,9 @@ function renderItinerary(trip) {
       const removeButton = document.createElement("button");
       removeButton.textContent = "Remove";
       removeButton.className = "btn-secondary";
-      removeButton.addEventListener("click", () => removeItineraryItem(trip.id, item.id));
+      removeButton.addEventListener("click", () => {
+        removeItineraryItem(trip.id, item.id);
+      });
 
       itemElement.append(removeButton);
       itineraryList.append(itemElement);
@@ -224,7 +243,6 @@ function renderExpenses(trip) {
   }
 
   trip.expenses
-    .slice()
     .sort((a, b) => new Date(a.addedAt) - new Date(b.addedAt))
     .forEach((expense) => {
       const itemElement = document.createElement("div");
@@ -242,7 +260,9 @@ function renderExpenses(trip) {
       const removeButton = document.createElement("button");
       removeButton.textContent = "Remove";
       removeButton.className = "btn-secondary";
-      removeButton.addEventListener("click", () => removeExpense(trip.id, expense.id));
+      removeButton.addEventListener("click", () => {
+        removeExpense(trip.id, expense.id);
+      });
 
       itemElement.append(removeButton);
       expenseList.append(itemElement);
@@ -268,27 +288,25 @@ function renderDestinationInfo(trip) {
 }
 
 async function removeItineraryItem(tripId, itemId) {
-  const trip = await fetchJson(`${API_BASE}/${tripId}/itinerary/${itemId}`, { method: "DELETE" });
-  updateTripState(trip);
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${tripId}/itinerary/${itemId}`, { method: "DELETE" });
+    const index = state.trips.findIndex((t) => t.id === tripId);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
 async function removeExpense(tripId, expenseId) {
-  const trip = await fetchJson(`${API_BASE}/${tripId}/expenses/${expenseId}`, { method: "DELETE" });
-  updateTripState(trip);
-}
-
-function updateTripState(trip) {
-  if (!trip) return;
-  const index = state.trips.findIndex((entry) => entry.id === trip.id);
-  if (index >= 0) {
-    state.trips[index] = trip;
-  } else {
-    state.trips.push(trip);
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${tripId}/expenses/${expenseId}`, { method: "DELETE" });
+    const index = state.trips.findIndex((t) => t.id === tripId);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
   }
-  state.activeTripId = trip.id;
-  renderTrips();
-  updateTripSummary();
-  renderTripDetails();
 }
 
 function resetTripForm() {
@@ -310,24 +328,28 @@ async function createTrip(event) {
     return;
   }
 
-  const trip = await fetchJson(API_BASE, {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      destination,
-      startDate,
-      endDate,
-      budget: Number.isFinite(budget) ? budget : 0,
-      notes,
-      destinationNotes: notes,
-    }),
-  });
+  const trip = {
+    name,
+    destination,
+    startDate,
+    endDate,
+    budget: Number.isFinite(budget) ? budget : 0,
+    notes,
+  };
 
-  state.trips.push(trip);
-  renderTrips();
-  updateTripSummary();
-  resetTripForm();
-  openTripDetails(trip.id);
+  try {
+    const created = await fetchJson(API_BASE, {
+      method: "POST",
+      body: JSON.stringify(trip),
+    });
+    state.trips.push(created);
+    renderTrips();
+    updateTripSummary();
+    resetTripForm();
+    openTripDetails(created.id);
+  } catch {
+    // ignore
+  }
 }
 
 async function addItineraryItem(event) {
@@ -342,18 +364,18 @@ async function addItineraryItem(event) {
 
   if (!day || !time || !title) return;
 
-  const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/itinerary`, {
-    method: "POST",
-    body: JSON.stringify({
-      day,
-      time,
-      title,
-      description,
-    }),
-  });
-
-  updateTripState(updatedTrip);
-  itineraryForm.reset();
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/itinerary`, {
+      method: "POST",
+      body: JSON.stringify({ day, time, title, description }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+    itineraryForm.reset();
+  } catch {
+    // ignore
+  }
 }
 
 async function addExpense(event) {
@@ -367,62 +389,87 @@ async function addExpense(event) {
 
   if (!category || !Number.isFinite(amount) || amount <= 0) return;
 
-  const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/expenses`, {
-    method: "POST",
-    body: JSON.stringify({
-      category,
-      amount,
-      description,
-      addedAt: new Date().toISOString(),
-    }),
-  });
-
-  updateTripState(updatedTrip);
-  expenseForm.reset();
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/expenses`, {
+      method: "POST",
+      body: JSON.stringify({ category, amount, description }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+    expenseForm.reset();
+  } catch {
+    // ignore
+  }
 }
 
 async function loadDestinationInfo() {
   const trip = getActiveTrip();
   if (!trip) return;
-  const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/destination-info`, { method: "POST" });
-  updateTripState(updatedTrip);
+
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/destination-info`, { method: "POST" });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
 async function saveTravelerNotes() {
   const trip = getActiveTrip();
   if (!trip) return;
-  const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/notes`, {
-    method: "POST",
-    body: JSON.stringify({
-      destinationNotes: destinationNotes.value.trim(),
-    }),
-  });
-  updateTripState(updatedTrip);
+
+  try {
+    const updatedTrip = await fetchJson(`${API_BASE}/${trip.id}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ destinationNotes: destinationNotes.value.trim() }),
+    });
+    const index = state.trips.findIndex((t) => t.id === trip.id);
+    if (index !== -1) state.trips[index] = updatedTrip;
+    renderTripDetails();
+  } catch {
+    // ignore
+  }
 }
 
 async function deleteActiveTrip() {
-  const trip = getActiveTrip();
-  if (!trip) return;
-  await fetchJson(`${API_BASE}/${trip.id}`, { method: "DELETE" });
-  state.trips = state.trips.filter((entry) => entry.id !== trip.id);
-  state.activeTripId = null;
-  renderTrips();
-  updateTripSummary();
-  showTripDetailsPanel(false);
+  if (!state.activeTripId) return;
+
+  try {
+    await fetchJson(`${API_BASE}/${state.activeTripId}`, { method: "DELETE" });
+    state.trips = state.trips.filter((trip) => trip.id !== state.activeTripId);
+    state.activeTripId = null;
+    renderTrips();
+    updateTripSummary();
+    showTripDetailsPanel(false);
+  } catch {
+    // ignore
+  }
 }
 
 async function exportTrips() {
-  const data = JSON.stringify(state.trips, null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "travel-plans.json";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  try {
+    const trips = await fetchJson(API_BASE, { method: "GET" });
+    const data = JSON.stringify(trips, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "travel-plans.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert("Failed to export trips. Is the backend running?");
+  }
 }
 
 async function init() {
+  if (!checkAuth()) return;
+
+  usernameDisplay.textContent = localStorage.getItem("username") || "";
+
   await loadTrips();
   renderTrips();
   updateTripSummary();
@@ -434,6 +481,7 @@ async function init() {
   saveNotesButton.addEventListener("click", saveTravelerNotes);
   deleteTripButton.addEventListener("click", deleteActiveTrip);
   exportButton.addEventListener("click", exportTrips);
+  logoutButton.addEventListener("click", logout);
 }
 
 init();

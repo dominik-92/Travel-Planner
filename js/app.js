@@ -1,9 +1,29 @@
 const API_BASE = "http://localhost:8080/api/trips";
 
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  window.location.href = "login.html";
+}
+
+function checkAuth() {
+  if (!getToken()) {
+    window.location.href = "login.html";
+    return false;
+  }
+  return true;
+}
+
 const tripForm = document.getElementById("trip-form");
 const itineraryForm = document.getElementById("itinerary-form");
 const expenseForm = document.getElementById("expense-form");
 const exportButton = document.getElementById("export-data-button");
+const logoutButton = document.getElementById("logout-button");
+const usernameDisplay = document.getElementById("username-display");
 
 const tripsList = document.getElementById("trips-list");
 const tripSummary = document.getElementById("trip-summary");
@@ -32,10 +52,17 @@ let state = {
 };
 
 async function fetchJson(url, options) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const token = getToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options?.headers || {}),
+  };
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401 || response.status === 403) {
+    logout();
+    return;
+  }
   if (!response.ok) {
     const errorMessage = await response.text();
     throw new Error(errorMessage || "Request failed");
@@ -439,6 +466,10 @@ async function exportTrips() {
 }
 
 async function init() {
+  if (!checkAuth()) return;
+
+  usernameDisplay.textContent = localStorage.getItem("username") || "";
+
   await loadTrips();
   renderTrips();
   updateTripSummary();
@@ -450,6 +481,7 @@ async function init() {
   saveNotesButton.addEventListener("click", saveTravelerNotes);
   deleteTripButton.addEventListener("click", deleteActiveTrip);
   exportButton.addEventListener("click", exportTrips);
+  logoutButton.addEventListener("click", logout);
 }
 
 init();

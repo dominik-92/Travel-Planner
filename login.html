@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Planner - Login</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="auth-body">
+    <div class="auth-container">
+      <div class="auth-header">
+        <h1>Travel Planner</h1>
+        <p>Plan trips, manage itineraries, track budgets, and save destination notes.</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button id="tab-login" class="auth-tab active">Login</button>
+          <button id="tab-register" class="auth-tab">Create Account</button>
+        </div>
+
+        <div id="auth-error" class="auth-error hidden"></div>
+
+        <form id="login-form" class="auth-form">
+          <div class="field-group">
+            <label for="login-username">Username <span class="required">*</span></label>
+            <input id="login-username" name="username" type="text" placeholder="Your username" required />
+          </div>
+          <div class="field-group">
+            <label for="login-password">Password <span class="required">*</span></label>
+            <input id="login-password" name="password" type="password" placeholder="Your password" required />
+          </div>
+          <button type="submit" class="btn-primary btn-full">Login</button>
+        </form>
+
+        <form id="register-form" class="auth-form hidden">
+          <div class="field-group">
+            <label for="register-username">Username <span class="required">*</span></label>
+            <input id="register-username" name="username" type="text" placeholder="Choose a username" required />
+          </div>
+          <div class="field-group">
+            <label for="register-email">Email <span class="required">*</span></label>
+            <input id="register-email" name="email" type="email" placeholder="your@email.com" required />
+          </div>
+          <div class="field-group">
+            <label for="register-password">Password <span class="required">*</span></label>
+            <input id="register-password" name="password" type="password" placeholder="Choose a password" required />
+          </div>
+          <button type="submit" class="btn-primary btn-full">Create Account</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+  </body>
+</html>
