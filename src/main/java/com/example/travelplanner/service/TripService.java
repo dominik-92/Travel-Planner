@@ -4,6 +4,7 @@ import com.example.travelplanner.model.DestinationInfo;
 import com.example.travelplanner.model.Expense;
 import com.example.travelplanner.model.ItineraryItem;
 import com.example.travelplanner.model.Trip;
+import com.example.travelplanner.model.User;
 import com.example.travelplanner.repository.TripRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,17 +25,21 @@ public class TripService {
     }
 
     @Transactional(readOnly = true)
-    public List<Trip> findAll() {
-        return tripRepository.findAll();
+    public List<Trip> findAllByUser(User user) {
+        return tripRepository.findByUserId(user.getId());
     }
 
     @Transactional(readOnly = true)
-    public Trip findById(String id) {
-        return tripRepository.findById(id)
+    public Trip findByIdAndUser(String id, User user) {
+        Trip trip = tripRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Trip not found"));
+        if (trip.getUser() == null || !trip.getUser().getId().equals(user.getId())) {
+            throw new SecurityException("Access denied");
+        }
+        return trip;
     }
 
-    public Trip createTrip(Trip trip) {
+    public Trip createTrip(Trip trip, User user) {
         if (trip.getId() == null || trip.getId().isBlank()) {
             trip.setId(generateId());
         }
@@ -44,15 +49,17 @@ public class TripService {
         if (trip.getDestinationNotes() == null) {
             trip.setDestinationNotes(trip.getNotes());
         }
+        trip.setUser(user);
         return tripRepository.save(trip);
     }
 
-    public void deleteTrip(String id) {
-        tripRepository.deleteById(id);
+    public void deleteTrip(String id, User user) {
+        Trip trip = findByIdAndUser(id, user);
+        tripRepository.deleteById(trip.getId());
     }
 
-    public Trip addItineraryItem(String tripId, ItineraryItem item) {
-        var trip = findById(tripId);
+    public Trip addItineraryItem(String tripId, ItineraryItem item, User user) {
+        var trip = findByIdAndUser(tripId, user);
         var finalItem = (item.getId() == null || item.getId().isBlank())
                 ? new ItineraryItem(generateId(), item.getDay(), item.getTime(), item.getTitle(), item.getDescription())
                 : item;
@@ -61,15 +68,15 @@ public class TripService {
         return trip;
     }
 
-    public Trip removeItineraryItem(String tripId, String itemId) {
-        var trip = findById(tripId);
+    public Trip removeItineraryItem(String tripId, String itemId, User user) {
+        var trip = findByIdAndUser(tripId, user);
         trip.getItinerary().removeIf(item -> item.getId().equals(itemId));
         tripRepository.save(trip);
         return trip;
     }
 
-    public Trip addExpense(String tripId, Expense expense) {
-        var trip = findById(tripId);
+    public Trip addExpense(String tripId, Expense expense, User user) {
+        var trip = findByIdAndUser(tripId, user);
         if (expense.getId() == null || expense.getId().isBlank()) {
             expense = new Expense(generateId(), expense.getCategory(), expense.getAmount(), expense.getDescription(), expense.getAddedAt());
         }
@@ -81,22 +88,22 @@ public class TripService {
         return trip;
     }
 
-    public Trip removeExpense(String tripId, String expenseId) {
-        var trip = findById(tripId);
+    public Trip removeExpense(String tripId, String expenseId, User user) {
+        var trip = findByIdAndUser(tripId, user);
         trip.getExpenses().removeIf(expense -> expense.getId().equals(expenseId));
         tripRepository.save(trip);
         return trip;
     }
 
-    public Trip loadDestinationInfo(String tripId) {
-        var trip = findById(tripId);
+    public Trip loadDestinationInfo(String tripId, User user) {
+        var trip = findByIdAndUser(tripId, user);
         trip.setDestinationInfo(buildDestinationInfo(trip.getDestination()));
         tripRepository.save(trip);
         return trip;
     }
 
-    public Trip updateDestinationNotes(String tripId, String destinationNotes) {
-        var trip = findById(tripId);
+    public Trip updateDestinationNotes(String tripId, String destinationNotes, User user) {
+        var trip = findByIdAndUser(tripId, user);
         trip.setDestinationNotes(destinationNotes);
         tripRepository.save(trip);
         return trip;
