@@ -27,6 +27,9 @@ class TripServiceTest {
     @Mock
     private TripRepository tripRepository;
 
+    @Mock
+    private CurrencyService currencyService;
+
     @InjectMocks
     private TripService tripService;
 
@@ -173,8 +176,10 @@ class TripServiceTest {
 
     @Test
     void addExpenseAddsExpenseToTrip() {
+        trip.setCurrency("EUR");
         when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
         when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(currencyService.getHistoricalRate(eq("EUR"), anyString())).thenReturn(4.3257);
 
         Expense expense = new Expense(null, "Food", 50.0, "Lunch", null);
         Trip result = tripService.addExpense("t1", expense, user);
@@ -182,18 +187,22 @@ class TripServiceTest {
         assertEquals(1, result.getExpenses().size());
         assertNotNull(result.getExpenses().get(0).getId());
         assertNotNull(result.getExpenses().get(0).getAddedAt());
+        assertEquals(4.3257, result.getExpenses().get(0).getRateToPln());
     }
 
     @Test
     void addExpensePreservesExistingIdAndTimestamp() {
+        trip.setCurrency("PLN");
         when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
         when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(currencyService.getHistoricalRate(eq("PLN"), anyString())).thenReturn(1.0);
 
         Expense expense = new Expense("e1", "Food", 50.0, "Lunch", "2026-08-01T12:00:00Z");
         Trip result = tripService.addExpense("t1", expense, user);
 
         assertEquals("e1", result.getExpenses().get(0).getId());
         assertEquals("2026-08-01T12:00:00Z", result.getExpenses().get(0).getAddedAt());
+        assertEquals(1.0, result.getExpenses().get(0).getRateToPln());
     }
 
     @Test
@@ -218,6 +227,8 @@ class TripServiceTest {
         DestinationInfo info = result.getDestinationInfo();
         assertNotNull(info);
         assertEquals("Euro (€)", info.getCurrency());
+        assertEquals("EUR", info.getCurrencyCode());
+        assertEquals("EUR", result.getCurrency());
         assertTrue(info.getWeather().contains("Mild"));
     }
 
@@ -230,6 +241,8 @@ class TripServiceTest {
         Trip result = tripService.loadDestinationInfo("t1", user);
 
         assertEquals("Pound Sterling (£)", result.getDestinationInfo().getCurrency());
+        assertEquals("GBP", result.getDestinationInfo().getCurrencyCode());
+        assertEquals("GBP", result.getCurrency());
     }
 
     @Test
@@ -241,6 +254,8 @@ class TripServiceTest {
         Trip result = tripService.loadDestinationInfo("t1", user);
 
         assertEquals("US Dollar ($)", result.getDestinationInfo().getCurrency());
+        assertEquals("USD", result.getDestinationInfo().getCurrencyCode());
+        assertEquals("USD", result.getCurrency());
     }
 
     @Test
@@ -252,6 +267,8 @@ class TripServiceTest {
         Trip result = tripService.loadDestinationInfo("t1", user);
 
         assertEquals("Japanese Yen (¥)", result.getDestinationInfo().getCurrency());
+        assertEquals("JPY", result.getDestinationInfo().getCurrencyCode());
+        assertEquals("JPY", result.getCurrency());
     }
 
     @Test
@@ -263,6 +280,8 @@ class TripServiceTest {
         Trip result = tripService.loadDestinationInfo("t1", user);
 
         assertEquals("Australian Dollar (A$)", result.getDestinationInfo().getCurrency());
+        assertEquals("AUD", result.getDestinationInfo().getCurrencyCode());
+        assertEquals("AUD", result.getCurrency());
     }
 
     @Test
@@ -275,6 +294,8 @@ class TripServiceTest {
 
         assertNotNull(result.getDestinationInfo());
         assertTrue(result.getDestinationInfo().getCurrency().contains("Local currency"));
+        assertEquals("PLN", result.getDestinationInfo().getCurrencyCode());
+        assertEquals("PLN", result.getCurrency());
     }
 
     @Test

@@ -7,14 +7,16 @@ public class DestinationInfo {
 
     private String weather;
     private String currency;
+    private String currencyCode;
     private String tips;
 
     public DestinationInfo() {
     }
 
-    public DestinationInfo(String weather, String currency, String tips) {
+    public DestinationInfo(String weather, String currency, String currencyCode, String tips) {
         this.weather = weather;
         this.currency = currency;
+        this.currencyCode = currencyCode;
         this.tips = tips;
     }
 
@@ -32,6 +34,14 @@ public class DestinationInfo {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
     }
 
     public String getTips() {

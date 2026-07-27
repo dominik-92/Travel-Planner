@@ -1,6 +1,8 @@
 package com.example.travelplanner.model;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -21,9 +23,11 @@ public class Trip {
 
     private String name;
     private String destination;
+    private String country;
     private String startDate;
     private String endDate;
     private double budget;
+    private String currency = "PLN";
     private String notes;
     private String destinationNotes;
 
@@ -34,6 +38,7 @@ public class Trip {
     private List<Expense> expenses = new ArrayList<>();
 
     @Embedded
+    @AttributeOverride(name = "currency", column = @Column(name = "destination_currency"))
     private DestinationInfo destinationInfo;
 
     @ManyToOne
@@ -69,6 +74,14 @@ public class Trip {
         this.destination = destination;
     }
 
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
     public String getStartDate() {
         return startDate;
     }
@@ -91,6 +104,14 @@ public class Trip {
 
     public void setBudget(double budget) {
         this.budget = budget;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public String getNotes() {

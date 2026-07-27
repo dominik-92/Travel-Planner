@@ -19,9 +19,11 @@ import java.util.UUID;
 public class TripService {
 
     private final TripRepository tripRepository;
+    private final CurrencyService currencyService;
 
-    public TripService(TripRepository tripRepository) {
+    public TripService(TripRepository tripRepository, CurrencyService currencyService) {
         this.tripRepository = tripRepository;
+        this.currencyService = currencyService;
     }
 
     @Transactional(readOnly = true)
@@ -83,6 +85,8 @@ public class TripService {
         if (expense.getAddedAt() == null || expense.getAddedAt().isBlank()) {
             expense.setAddedAt(Instant.now().toString());
         }
+        double rate = currencyService.getHistoricalRate(trip.getCurrency(), expense.getAddedAt());
+        expense.setRateToPln(rate);
         trip.addExpense(expense);
         tripRepository.save(trip);
         return trip;
@@ -97,7 +101,11 @@ public class TripService {
 
     public Trip loadDestinationInfo(String tripId, User user) {
         var trip = findByIdAndUser(tripId, user);
-        trip.setDestinationInfo(buildDestinationInfo(trip.getDestination()));
+        var info = buildDestinationInfo(trip.getDestination());
+        trip.setDestinationInfo(info);
+        if (info.getCurrencyCode() != null) {
+            trip.setCurrency(info.getCurrencyCode());
+        }
         tripRepository.save(trip);
         return trip;
     }
@@ -115,6 +123,7 @@ public class TripService {
         var defaults = new DestinationInfo(
                 "Check local reports for the latest forecast.",
                 "Local currency may vary by country.",
+                "PLN",
                 "Bring comfortable shoes, stay hydrated, and verify transport options in advance."
         );
 
@@ -123,30 +132,35 @@ public class TripService {
                     new DestinationInfo(
                             "Mild and changeable – pack a light layer.",
                             "Euro (€)",
+                            "EUR",
                             "Book museums early and use metro passes for savings."
                     );
             case String s when s.matches(".*(london|uk|england|britain).*") ->
                     new DestinationInfo(
                             "Unpredictable weather – carry a compact umbrella.",
                             "Pound Sterling (£)",
+                            "GBP",
                             "Plan around tube hours and enjoy pub meals in the evening."
                     );
             case String s when s.matches(".*(new york|usa|united states|america).*") ->
                     new DestinationInfo(
                             "Seasonal: check forecast before packing.",
                             "US Dollar ($)",
+                            "USD",
                             "Buy transit cards ahead and reserve popular attractions early."
                     );
             case String s when s.matches(".*(tokyo|japan).*") ->
                     new DestinationInfo(
                             "Often humid in summer; cool in autumn.",
                             "Japanese Yen (¥)",
+                            "JPY",
                             "Carry cash for small shops and follow local etiquette."
                     );
             case String s when s.matches(".*(sydney|australia).*") ->
                     new DestinationInfo(
                             "Sunny days are common; sunscreen is essential.",
                             "Australian Dollar (A$)",
+                            "AUD",
                             "Respect wildlife and plan for longer travel distances."
                     );
             default -> defaults;

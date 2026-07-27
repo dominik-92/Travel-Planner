@@ -25,12 +25,14 @@ class ExpenseTest {
         expense.setAmount(15.0);
         expense.setDescription("Taxi");
         expense.setAddedAt("2026-08-02T08:00:00Z");
+        expense.setRateToPln(4.3257);
 
         assertEquals("e2", expense.getId());
         assertEquals("Transport", expense.getCategory());
         assertEquals(15.0, expense.getAmount());
         assertEquals("Taxi", expense.getDescription());
         assertEquals("2026-08-02T08:00:00Z", expense.getAddedAt());
+        assertEquals(4.3257, expense.getRateToPln());
     }
 
     @Test
