@@ -29,9 +29,19 @@
             <label for="trip-name">Trip Name</label>
             <input id="trip-name" name="tripName" type="text" placeholder="Weekend in Paris" required />
           </div>
-          <div class="field-group">
-            <label for="destination">Destination</label>
-            <input id="destination" name="destination" type="text" placeholder="Destination city or region" required />
+          <div class="field-row">
+            <div class="field-group">
+              <label for="country-search">Country</label>
+              <div class="searchable-select" id="country-select-wrapper">
+                <input id="country-search" type="text" placeholder="Search country..." autocomplete="off" />
+                <input type="hidden" id="trip-country" name="tripCountry" />
+                <div class="searchable-select-dropdown" id="country-dropdown"></div>
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="destination">Destination</label>
+              <input id="destination" name="destination" type="text" placeholder="Destination city or region" required />
+            </div>
           </div>
           <div class="field-row">
             <div class="field-group">
@@ -43,9 +53,15 @@
               <input id="end-date" name="endDate" type="date" required />
             </div>
           </div>
-          <div class="field-group">
-            <label for="budget">Budget (€)</label>
-            <input id="budget" name="budget" type="number" min="0" value="0" required />
+          <div class="field-row">
+            <div class="field-group">
+              <label for="budget">Budget</label>
+              <input id="budget" name="budget" type="number" min="0" value="0" required />
+            </div>
+            <div class="field-group">
+              <label for="trip-currency">Currency</label>
+              <select id="trip-currency" name="currency"></select>
+            </div>
           </div>
           <div class="field-group">
             <label for="notes">Destination Notes</label>
@@ -106,15 +122,16 @@
             <h3>Budget Tracker</h3>
             <div class="budget-summary">
               <div class="budget-label">Budget</div>
-              <div id="budget-total" class="budget-value">€0</div>
+              <div id="budget-total" class="budget-value">0</div>
             </div>
             <div class="progress-bar">
               <div id="budget-progress" class="progress-fill"></div>
             </div>
             <div class="budget-details">
-              <span id="budget-spent">Spent: €0</span>
-              <span id="budget-remaining">Remaining: €0</span>
+              <span id="budget-spent">Spent: 0</span>
+              <span id="budget-remaining">Remaining: 0</span>
             </div>
+            <div id="budget-pln-equivalent" class="currency-conversion"></div>
 
             <form id="expense-form" class="small-form">
               <div class="field-group">
@@ -128,7 +145,7 @@
                 </select>
               </div>
               <div class="field-group">
-                <label for="expense-amount">Amount (€)</label>
+                <label for="expense-amount">Amount</label>
                 <input id="expense-amount" name="expenseAmount" type="number" min="0" step="0.01" required />
               </div>
               <div class="field-group">

@@ -2,6 +2,7 @@ package com.example.travelplanner.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -20,6 +21,8 @@ public class Expense {
     private double amount;
     private String description;
     private String addedAt;
+    @Column(columnDefinition = "double precision default 1.0")
+    private double rateToPln = 1.0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_id")
@@ -35,6 +38,15 @@ public class Expense {
         this.amount = amount;
         this.description = description;
         this.addedAt = addedAt;
+    }
+
+    public Expense(String id, String category, double amount, String description, String addedAt, double rateToPln) {
+        this.id = id;
+        this.category = category;
+        this.amount = amount;
+        this.description = description;
+        this.addedAt = addedAt;
+        this.rateToPln = rateToPln;
     }
 
     public String getId() {
@@ -75,6 +87,14 @@ public class Expense {
 
     public void setAddedAt(String addedAt) {
         this.addedAt = addedAt;
+    }
+
+    public double getRateToPln() {
+        return rateToPln;
+    }
+
+    public void setRateToPln(double rateToPln) {
+        this.rateToPln = rateToPln;
     }
 
     public Trip getTrip() {
