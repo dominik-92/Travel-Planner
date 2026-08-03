@@ -27,9 +27,23 @@ class JwtUtilTest {
 
     @Test
     void generateTokenReturnsNonNullString() {
-        String token = jwtUtil.generateToken("john");
+        String token = jwtUtil.generateToken("john", "pl");
         assertNotNull(token);
         assertFalse(token.isBlank());
+    }
+
+    @Test
+    void generateTokenWithoutLanguageDefaultsToEn() {
+        String token = jwtUtil.generateToken("john");
+        assertEquals("en", jwtUtil.extractLanguage(token));
+    }
+
+    @Test
+    void generateTokenStoresLanguageClaim() {
+        String token = jwtUtil.generateToken("john", "es");
+
+        assertEquals("john", jwtUtil.extractUsername(token));
+        assertEquals("es", jwtUtil.extractLanguage(token));
     }
 
     @Test

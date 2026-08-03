@@ -57,6 +57,41 @@ public class CurrencyService {
             Map.entry("SDR (MFW)", "SDR (IMF)")
     );
 
+    private static final Map<String, String> ENGLISH_TO_SPANISH = Map.ofEntries(
+            Map.entry("Thai Baht", "Bat tailandés"),
+            Map.entry("US Dollar", "Dólar estadounidense"),
+            Map.entry("Australian Dollar", "Dólar australiano"),
+            Map.entry("Hong Kong Dollar", "Dólar de Hong Kong"),
+            Map.entry("Canadian Dollar", "Dólar canadiense"),
+            Map.entry("New Zealand Dollar", "Dólar neozelandés"),
+            Map.entry("Singapore Dollar", "Dólar de Singapur"),
+            Map.entry("Euro", "Euro"),
+            Map.entry("Hungarian Forint", "Forinto húngaro"),
+            Map.entry("Swiss Franc", "Franco suizo"),
+            Map.entry("British Pound", "Libra esterlina"),
+            Map.entry("Ukrainian Hryvnia", "Grivna ucraniana"),
+            Map.entry("Japanese Yen", "Yen japonés"),
+            Map.entry("Czech Koruna", "Corona checa"),
+            Map.entry("Danish Krone", "Corona danesa"),
+            Map.entry("Icelandic Króna", "Corona islandesa"),
+            Map.entry("Norwegian Krone", "Corona noruega"),
+            Map.entry("Swedish Krona", "Corona sueca"),
+            Map.entry("Romanian Leu", "Leu rumano"),
+            Map.entry("Turkish Lira", "Lira turca"),
+            Map.entry("Israeli New Shekel", "Nuevo shéquel israelí"),
+            Map.entry("Chilean Peso", "Peso chileno"),
+            Map.entry("Philippine Peso", "Peso filipino"),
+            Map.entry("Mexican Peso", "Peso mexicano"),
+            Map.entry("South African Rand", "Rand sudafricano"),
+            Map.entry("Brazilian Real", "Real brasileño"),
+            Map.entry("Malaysian Ringgit", "Ringgit malayo"),
+            Map.entry("Indonesian Rupiah", "Rupia indonesia"),
+            Map.entry("Indian Rupee", "Rupia india"),
+            Map.entry("South Korean Won", "Won surcoreano"),
+            Map.entry("Chinese Yuan", "Yuan chino"),
+            Map.entry("SDR (IMF)", "DEG (FMI)")
+    );
+
     private final CurrencyRepository currencyRepository;
     private final RestTemplate restTemplate;
 
@@ -78,7 +113,7 @@ public class CurrencyService {
             String effectiveDate = (String) table.get("effectiveDate");
             List<Map<String, Object>> rates = (List<Map<String, Object>>) table.get("rates");
 
-            Currency pln = new Currency("PLN", "Polish Złoty", 1.0, effectiveDate);
+            Currency pln = new Currency("PLN", "Polish Złoty", "Polski złoty", "Esloti polaco", 1.0, effectiveDate);
             currencyRepository.save(pln);
 
             for (Map<String, Object> rateEntry : rates) {
@@ -86,7 +121,8 @@ public class CurrencyService {
                 String polishName = (String) rateEntry.get("currency");
                 double mid = ((Number) rateEntry.get("mid")).doubleValue();
                 String englishName = POLISH_TO_ENGLISH.getOrDefault(polishName, polishName);
-                currencyRepository.save(new Currency(code, englishName, mid, effectiveDate));
+                String spanishName = ENGLISH_TO_SPANISH.getOrDefault(englishName, englishName);
+                currencyRepository.save(new Currency(code, englishName, polishName, spanishName, mid, effectiveDate));
             }
 
             log.info("Saved {} currencies from NBP (effective date: {})", rates.size() + 1, effectiveDate);
@@ -100,6 +136,15 @@ public class CurrencyService {
     @Transactional(readOnly = true)
     public List<Currency> getAllCurrencies() {
         return currencyRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasStaleCurrencyData() {
+        List<Currency> currencies = currencyRepository.findAll();
+        if (currencies.isEmpty()) {
+            return false;
+        }
+        return currencies.stream().anyMatch(c -> c.getNamePl() == null || c.getNamePl().isBlank());
     }
 
     @Transactional(readOnly = true)
