@@ -8,13 +8,28 @@ class UserTest {
 
     @Test
     void parameterizedConstructorSetsAllFields() {
-        User user = new User("u1", "john", "john@test.com", "hashedPass", "2026-01-01T00:00:00Z");
+        User user = new User("u1", "john", "john@test.com", "hashedPass", "2026-01-01T00:00:00Z", "pl");
 
         assertEquals("u1", user.getId());
         assertEquals("john", user.getUsername());
         assertEquals("john@test.com", user.getEmail());
         assertEquals("hashedPass", user.getPassword());
         assertEquals("2026-01-01T00:00:00Z", user.getCreatedAt());
+        assertEquals("pl", user.getLanguage());
+    }
+
+    @Test
+    void threeArgConstructorDefaultsLanguageToEn() {
+        User user = new User("u1", "john", "john@test.com", "hashedPass", "2026-01-01T00:00:00Z");
+
+        assertEquals("en", user.getLanguage());
+    }
+
+    @Test
+    void defaultConstructorDefaultsLanguageToEn() {
+        User user = new User();
+
+        assertEquals("en", user.getLanguage());
     }
 
     @Test
@@ -25,11 +40,13 @@ class UserTest {
         user.setEmail("jane@test.com");
         user.setPassword("secret");
         user.setCreatedAt("2026-06-01T00:00:00Z");
+        user.setLanguage("es");
 
         assertEquals("u2", user.getId());
         assertEquals("jane", user.getUsername());
         assertEquals("jane@test.com", user.getEmail());
         assertEquals("secret", user.getPassword());
         assertEquals("2026-06-01T00:00:00Z", user.getCreatedAt());
+        assertEquals("es", user.getLanguage());
     }
 }

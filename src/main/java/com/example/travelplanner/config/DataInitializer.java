@@ -28,6 +28,9 @@ public class DataInitializer implements CommandLineRunner {
         if (currencyService.getAllCurrencies().isEmpty()) {
             log.info("Currencies table is empty. Fetching from NBP API...");
             currencyService.fetchAndSaveCurrencies();
+        } else if (currencyService.hasStaleCurrencyData()) {
+            log.info("Currency data lacks localized names. Re-fetching from NBP API...");
+            currencyService.fetchAndSaveCurrencies();
         } else {
             log.info("Currencies table already populated. Skipping NBP fetch.");
         }

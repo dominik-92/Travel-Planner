@@ -40,7 +40,7 @@ class CurrencyServiceTest {
         Map<String, Object> table = Map.of("effectiveDate", "2026-07-24", "rates", List.of(rateEntry));
         when(restTemplate.getForObject(contains("tables/a"), eq(List.class))).thenReturn(List.of(table));
         when(currencyRepository.save(any(Currency.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(currencyRepository.findAll()).thenReturn(List.of(new Currency("PLN", "Polish Złoty", 1.0, "2026-07-24"), new Currency("EUR", "Euro", 4.3257, "2026-07-24")));
+        when(currencyRepository.findAll()).thenReturn(List.of(new Currency("PLN", "Polish Złoty", "Polski złoty", "Esloti polaco", 1.0, "2026-07-24"), new Currency("EUR", "Euro", "Euro", "Euro", 4.3257, "2026-07-24")));
 
         List<Currency> result = currencyService.fetchAndSaveCurrencies();
 
@@ -67,7 +67,7 @@ class CurrencyServiceTest {
 
     @Test
     void getLatestRateForEurReturnsDbRate() {
-        when(currencyRepository.findById("EUR")).thenReturn(Optional.of(new Currency("EUR", "Euro", 4.3257, "2026-07-24")));
+        when(currencyRepository.findById("EUR")).thenReturn(Optional.of(new Currency("EUR", "Euro", "Euro", "Euro", 4.3257, "2026-07-24")));
 
         double rate = currencyService.getLatestRate("EUR");
 
@@ -105,7 +105,7 @@ class CurrencyServiceTest {
     @Test
     void getHistoricalRateFallsBackToLatestOnApiFailure() {
         when(restTemplate.getForObject(contains("rates/a/eur"), eq(Map.class))).thenThrow(new RuntimeException("API error"));
-        when(currencyRepository.findById("EUR")).thenReturn(Optional.of(new Currency("EUR", "Euro", 4.3257, "2026-07-24")));
+        when(currencyRepository.findById("EUR")).thenReturn(Optional.of(new Currency("EUR", "Euro", "Euro", "Euro", 4.3257, "2026-07-24")));
 
         double rate = currencyService.getHistoricalRate("EUR", "2026-07-26T12:00:00Z");
 
@@ -114,7 +114,7 @@ class CurrencyServiceTest {
 
     @Test
     void getAllCurrenciesReturnsFromRepository() {
-        List<Currency> expected = List.of(new Currency("PLN", "Polish Złoty", 1.0, "2026-07-24"));
+        List<Currency> expected = List.of(new Currency("PLN", "Polish Złoty", "Polski złoty", "Esloti polaco", 1.0, "2026-07-24"));
         when(currencyRepository.findAll()).thenReturn(expected);
 
         List<Currency> result = currencyService.getAllCurrencies();

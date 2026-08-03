@@ -15,16 +15,22 @@ public class User {
     private String email;
     private String password;
     private String createdAt;
+    private String language = "en";
 
     public User() {
     }
 
     public User(String id, String username, String email, String password, String createdAt) {
+        this(id, username, email, password, createdAt, "en");
+    }
+
+    public User(String id, String username, String email, String password, String createdAt, String language) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
         this.createdAt = createdAt;
+        this.language = language;
     }
 
     public String getId() {
@@ -65,5 +71,13 @@ public class User {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 }

@@ -25,7 +25,7 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
-    public Map<String, String> register(String username, String email, String password) {
+    public Map<String, String> register(String username, String email, String password, String language) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -33,17 +33,20 @@ public class AuthService {
             throw new IllegalArgumentException("Email already exists");
         }
 
+        String lang = (language != null && language.matches("pl|en|es")) ? language : "en";
+
         User user = new User(
                 System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6),
                 username,
                 email,
                 passwordEncoder.encode(password),
-                Instant.now().toString()
+                Instant.now().toString(),
+                lang
         );
         userRepository.save(user);
 
-        String token = jwtUtil.generateToken(username);
-        return Map.of("token", token, "username", username);
+        String token = jwtUtil.generateToken(username, lang);
+        return Map.of("token", token, "username", username, "language", lang);
     }
 
     public Map<String, String> login(String username, String password) {
@@ -54,8 +57,22 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid credentials");
         }
 
-        String token = jwtUtil.generateToken(username);
-        return Map.of("token", token, "username", username);
+        String language = user.getLanguage() != null ? user.getLanguage() : "en";
+        String token = jwtUtil.generateToken(username, language);
+        return Map.of("token", token, "username", username, "language", language);
+    }
+
+    public Map<String, String> updateLanguage(String username, String language) {
+        if (language == null || !language.matches("pl|en|es")) {
+            throw new IllegalArgumentException("Unsupported language");
+        }
+
+        User user = findByUsername(username);
+        user.setLanguage(language);
+        userRepository.save(user);
+
+        String token = jwtUtil.generateToken(username, language);
+        return Map.of("token", token, "username", username, "language", language);
     }
 
     public User findByUsername(String username) {

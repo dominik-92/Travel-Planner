@@ -12,15 +12,19 @@ public class Currency {
     private String code;
 
     private String name;
+    private String namePl;
+    private String nameEs;
     private double rate;
     private String effectiveDate;
 
     public Currency() {
     }
 
-    public Currency(String code, String name, double rate, String effectiveDate) {
+    public Currency(String code, String name, String namePl, String nameEs, double rate, String effectiveDate) {
         this.code = code;
         this.name = name;
+        this.namePl = namePl;
+        this.nameEs = nameEs;
         this.rate = rate;
         this.effectiveDate = effectiveDate;
     }
@@ -39,6 +43,22 @@ public class Currency {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getNamePl() {
+        return namePl;
+    }
+
+    public void setNamePl(String namePl) {
+        this.namePl = namePl;
+    }
+
+    public String getNameEs() {
+        return nameEs;
+    }
+
+    public void setNameEs(String nameEs) {
+        this.nameEs = nameEs;
     }
 
     public double getRate() {
