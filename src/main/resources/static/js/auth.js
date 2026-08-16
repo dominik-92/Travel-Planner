@@ -1,5 +1,5 @@
-const AUTH_API = "http://localhost:8080/api/auth";
-const USER_API = "http://localhost:8080/api/user";
+const AUTH_API = "/api/auth";
+const USER_API = "/api/user";
 
 const tabLogin = document.getElementById("tab-login");
 const tabRegister = document.getElementById("tab-register");
