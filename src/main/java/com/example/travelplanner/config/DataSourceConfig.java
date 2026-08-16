@@ -27,14 +27,23 @@ public class DataSourceConfig {
             url = "jdbc:" + url;
         }
         if (url != null) {
-            int atPos = url.indexOf('@');
-            if (atPos >= 0) {
-                int slashPos = url.indexOf('/', atPos);
-                if (slashPos > atPos) {
-                    String hostPart = url.substring(atPos + 1, slashPos);
-                    if (!hostPart.contains(":")) {
-                        url = url.substring(0, slashPos) + ":5432" + url.substring(slashPos);
+            int protocolEnd = url.indexOf("://");
+            if (protocolEnd >= 0) {
+                String afterProtocol = url.substring(protocolEnd + 3);
+                int atPos = afterProtocol.indexOf('@');
+                if (atPos >= 0) {
+                    String credentials = afterProtocol.substring(0, atPos);
+                    String hostAndDb = afterProtocol.substring(atPos + 1);
+                    int colonPos = credentials.indexOf(':');
+                    if (colonPos >= 0) {
+                        properties.setUsername(credentials.substring(0, colonPos));
+                        properties.setPassword(credentials.substring(colonPos + 1));
                     }
+                    int slashPos = hostAndDb.indexOf('/');
+                    if (slashPos > 0 && !hostAndDb.substring(0, slashPos).contains(":")) {
+                        hostAndDb = hostAndDb.substring(0, slashPos) + ":5432" + hostAndDb.substring(slashPos);
+                    }
+                    url = url.substring(0, protocolEnd + 3) + hostAndDb;
                 }
             }
         }
