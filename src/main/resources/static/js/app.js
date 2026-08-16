@@ -1,7 +1,7 @@
-const API_BASE = "http://localhost:8080/api/trips";
-const CURRENCY_API_BASE = "http://localhost:8080/api/currencies";
-const COUNTRY_API_BASE = "http://localhost:8080/api/countries";
-const USER_API = "http://localhost:8080/api/user";
+const API_BASE = "/api/trips";
+const CURRENCY_API_BASE = "/api/currencies";
+const COUNTRY_API_BASE = "/api/countries";
+const USER_API = "/api/user";
 
 const ICONS = {
   calendar:
