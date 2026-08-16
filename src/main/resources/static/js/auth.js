@@ -6,7 +6,7 @@ const tabRegister = document.getElementById("tab-register");
 const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
 const authError = document.getElementById("auth-error");
-const languageSelect = document.getElementById("language-select");
+const languageSwitch = document.getElementById("language-switch");
 
 function showError(message) {
   authError.textContent = message;
@@ -109,10 +109,29 @@ async function handleRegister(event) {
   }
 }
 
-if (languageSelect) {
-  languageSelect.addEventListener("change", async (e) => {
-    await I18n.setLanguage(e.target.value);
-    I18n.applyLanguageToPage();
+function setupPasswordToggles() {
+  document.querySelectorAll(".password-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.dataset.toggleTarget);
+      if (!input) return;
+      const reveal = input.type === "password";
+      input.type = reveal ? "text" : "password";
+      const titleKey = reveal ? "auth.hidePassword" : "auth.showPassword";
+      btn.setAttribute("title", I18n.t(titleKey));
+      btn.setAttribute("aria-label", I18n.t(titleKey));
+    });
+  });
+}
+
+if (languageSwitch) {
+  languageSwitch.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await I18n.setLanguage(btn.dataset.lang);
+      languageSwitch.querySelectorAll(".lang-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+      });
+      I18n.applyLanguageToPage();
+    });
   });
 }
 
@@ -122,6 +141,12 @@ loginForm.addEventListener("submit", handleLogin);
 registerForm.addEventListener("submit", handleRegister);
 
 (async function () {
+  try {
+    Theme.init();
+  } catch {
+    // ignore theme failures
+  }
+
   if (localStorage.getItem("token")) {
     window.location.href = "index.html";
     return;
@@ -133,7 +158,12 @@ registerForm.addEventListener("submit", handleRegister);
   }
   await I18n.init();
 
-  if (languageSelect) {
-    languageSelect.value = I18n.getLanguage();
+  if (languageSwitch) {
+    const lang = I18n.getLanguage();
+    languageSwitch.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.lang === lang);
+    });
   }
+
+  setupPasswordToggles();
 })();

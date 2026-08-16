@@ -65,6 +65,12 @@ const I18n = {
     document.querySelectorAll("[data-i18n-value]").forEach((el) => {
       el.setAttribute("value", this.t(el.getAttribute("data-i18n-value")));
     });
+    document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+      el.setAttribute("title", this.t(el.getAttribute("data-i18n-title")));
+    });
+    document.querySelectorAll("[data-i18n-aria-label]").forEach((el) => {
+      el.setAttribute("aria-label", this.t(el.getAttribute("data-i18n-aria-label")));
+    });
   },
 
   updateHtmlLang() {

@@ -3,6 +3,13 @@ const CURRENCY_API_BASE = "http://localhost:8080/api/currencies";
 const COUNTRY_API_BASE = "http://localhost:8080/api/countries";
 const USER_API = "http://localhost:8080/api/user";
 
+const ICONS = {
+  calendar:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  wallet:
+    '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
+};
+
 function getToken() {
   return localStorage.getItem("token");
 }
@@ -22,21 +29,51 @@ function checkAuth() {
   return true;
 }
 
-const tripForm = document.getElementById("trip-form");
-const itineraryForm = document.getElementById("itinerary-form");
-const expenseForm = document.getElementById("expense-form");
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+// ---- DOM refs -----------------------------------------------------------
+
+const usernameDisplay = document.getElementById("username-display");
+const languageSwitch = document.getElementById("language-switch");
 const exportButton = document.getElementById("export-data-button");
 const logoutButton = document.getElementById("logout-button");
-const usernameDisplay = document.getElementById("username-display");
-const languageSelect = document.getElementById("language-select");
 
+const dashboardView = document.getElementById("dashboard-view");
+const detailView = document.getElementById("detail-view");
+const newTripButton = document.getElementById("new-trip-button");
+const emptyCta = document.getElementById("empty-cta");
+const tripsEmpty = document.getElementById("trips-empty");
 const tripsList = document.getElementById("trips-list");
-const tripSummary = document.getElementById("trip-summary");
-const tripDetailsPanel = document.getElementById("trip-details-panel");
+const statTrips = document.getElementById("stat-trips");
+const statUpcoming = document.getElementById("stat-upcoming");
+const statPast = document.getElementById("stat-past");
+
+const tripModal = document.getElementById("trip-modal");
+const closeTripModalBtn = document.getElementById("close-trip-modal");
+const tripForm = document.getElementById("trip-form");
+const resetTripButton = document.getElementById("reset-trip-button");
+
+const backButton = document.getElementById("back-button");
+const deleteTripButton = document.getElementById("delete-trip-button");
 const activeTripCard = document.getElementById("active-trip-card");
+
+const tabItinerary = document.getElementById("tab-itinerary");
+const tabBudget = document.getElementById("tab-budget");
+const tabDestination = document.getElementById("tab-destination");
+const panelItinerary = document.getElementById("panel-itinerary");
+const panelBudget = document.getElementById("panel-budget");
+const panelDestination = document.getElementById("panel-destination");
+
+const itineraryForm = document.getElementById("itinerary-form");
 const itineraryDay = document.getElementById("itinerary-day");
 const itineraryList = document.getElementById("itinerary-list");
-const expenseList = document.getElementById("expense-list");
 
 const budgetTotal = document.getElementById("budget-total");
 const budgetSpent = document.getElementById("budget-spent");
@@ -44,26 +81,39 @@ const budgetRemaining = document.getElementById("budget-remaining");
 const budgetProgress = document.getElementById("budget-progress");
 const budgetPlnEquivalent = document.getElementById("budget-pln-equivalent");
 
+const expenseForm = document.getElementById("expense-form");
+const expenseList = document.getElementById("expense-list");
+
 const loadDestinationButton = document.getElementById("load-destination-info");
 const saveNotesButton = document.getElementById("save-notes-button");
 const destinationWeather = document.getElementById("destination-weather");
 const destinationCurrency = document.getElementById("destination-currency");
 const destinationTips = document.getElementById("destination-tips");
 const destinationNotes = document.getElementById("destination-notes");
-const deleteTripButton = document.getElementById("delete-trip-button");
+
 const tripCurrencySelect = document.getElementById("trip-currency");
 const tripCountryHidden = document.getElementById("trip-country");
 const countrySearchInput = document.getElementById("country-search");
 const countryDropdown = document.getElementById("country-dropdown");
 const countrySelectWrapper = document.getElementById("country-select-wrapper");
-const destinationInput = document.getElementById("destination");
+
+const confirmModal = document.getElementById("confirm-modal");
+const confirmMessage = document.getElementById("confirm-message");
+const confirmOk = document.getElementById("confirm-ok");
+const confirmCancel = document.getElementById("confirm-cancel");
+
+const toastContainer = document.getElementById("toast-container");
 
 let state = {
   trips: [],
   activeTripId: null,
+  activeTab: "itinerary",
+  filter: "all",
   currencies: [],
   countries: [],
 };
+
+// ---- API / formatting ----------------------------------------------------
 
 async function fetchJson(url, options) {
   const token = getToken();
@@ -100,10 +150,18 @@ function getLocale() {
 }
 
 function formatCurrency(value, currencyCode = "PLN") {
-  return new Intl.NumberFormat(getLocale(), {
-    style: "currency",
-    currency: currencyCode,
-  }).format(Number(value));
+  try {
+    return new Intl.NumberFormat(getLocale(), {
+      style: "currency",
+      currency: currencyCode,
+    }).format(Number(value));
+  } catch {
+    return new Intl.NumberFormat(getLocale(), {
+      style: "decimal",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value));
+  }
 }
 
 function formatDate(date) {
@@ -120,121 +178,219 @@ function getActiveTrip() {
   return state.trips.find((trip) => trip.id === state.activeTripId) || null;
 }
 
-function pluralForm(count, lang) {
-  if (lang === "pl") {
-    if (count === 1) return 0;
-    if (count >= 2 && count <= 4 && count % 1 === 0) return 1;
-    return 2;
-  }
-  return count === 1 ? 0 : 1;
+function tripSpent(trip) {
+  return (trip.expenses || []).reduce((s, e) => s + Number(e.amount), 0);
 }
 
-function updateTripSummary() {
-  if (state.trips.length === 0) {
-    tripSummary.textContent = I18n.t("trip.noTrips");
-    return;
+function tripRatio(trip) {
+  const budget = Number(trip.budget);
+  if (budget <= 0) return 0;
+  return Math.min(100, (tripSpent(trip) / budget) * 100);
+}
+
+// ---- Toast ---------------------------------------------------------------
+
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toastContainer.append(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 250);
+  }, 3200);
+}
+
+// ---- View switching ------------------------------------------------------
+
+function showDashboard() {
+  state.activeTripId = null;
+  dashboardView.classList.remove("hidden");
+  detailView.classList.add("hidden");
+  window.scrollTo({ top: 0 });
+}
+
+function showDetail() {
+  dashboardView.classList.add("hidden");
+  detailView.classList.remove("hidden");
+  window.scrollTo({ top: 0 });
+}
+
+function switchTab(name) {
+  state.activeTab = name;
+  tabItinerary.classList.toggle("active", name === "itinerary");
+  tabBudget.classList.toggle("active", name === "budget");
+  tabDestination.classList.toggle("active", name === "destination");
+  panelItinerary.classList.toggle("hidden", name !== "itinerary");
+  panelBudget.classList.toggle("hidden", name !== "budget");
+  panelDestination.classList.toggle("hidden", name !== "destination");
+}
+
+// ---- Modal ---------------------------------------------------------------
+
+function openTripModal() {
+  tripModal.classList.add("open");
+  document.body.classList.add("modal-open");
+  setTimeout(() => document.getElementById("trip-name").focus(), 50);
+}
+
+function closeTripModal() {
+  tripModal.classList.remove("open");
+  document.body.classList.remove("modal-open");
+  resetTripForm();
+}
+
+// ---- Confirm -------------------------------------------------------------
+
+let confirmResolver = null;
+
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    confirmMessage.textContent = message;
+    confirmModal.classList.add("open");
+    document.body.classList.add("modal-open");
+  });
+}
+
+function closeConfirm(result) {
+  confirmModal.classList.remove("open");
+  document.body.classList.remove("modal-open");
+  if (confirmResolver) confirmResolver(result);
+  confirmResolver = null;
+}
+
+// ---- Dashboard rendering -------------------------------------------------
+
+function renderStats() {
+  const now = new Date();
+  statTrips.textContent = state.trips.length;
+  statUpcoming.textContent = state.trips.filter(
+    (trip) => new Date(trip.startDate) >= now
+  ).length;
+  statPast.textContent = state.trips.filter(
+    (trip) => new Date(trip.endDate) < now
+  ).length;
+}
+
+function filteredTrips() {
+  const now = new Date();
+  if (state.filter === "upcoming") {
+    return state.trips.filter((trip) => new Date(trip.startDate) >= now);
   }
-
-  const totalTrips = state.trips.length;
-  const upcoming = state.trips.filter((trip) => new Date(trip.startDate) >= new Date()).length;
-  const lang = I18n.getLanguage();
-  const pluralIdx = pluralForm(totalTrips, lang);
-
-  let pluralSuffix;
-  if (lang === "pl") {
-    pluralSuffix = ["ka", "ki", "k"][pluralIdx];
-  } else {
-    pluralSuffix = pluralIdx === 0 ? "" : "s";
+  if (state.filter === "past") {
+    return state.trips.filter((trip) => new Date(trip.endDate) < now);
   }
+  return state.trips;
+}
 
-  const tripsSaved = I18n.t("trip.tripsSaved", { 0: totalTrips, 1: pluralSuffix });
-  const upcomingText = I18n.t("trip.upcoming", { 0: upcoming });
-  const sep = I18n.t("trip.summarySeparator");
-  tripSummary.textContent = `${tripsSaved}${sep}${upcomingText}`;
+function setFilter(filter) {
+  state.filter = filter;
+  document.querySelectorAll(".stat-card").forEach((el) => {
+    el.classList.toggle("active", el.dataset.filter === filter);
+  });
+  renderTrips();
+  if (state.trips.length > 0) {
+    document.querySelector(".section-head").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function renderTrips() {
   tripsList.innerHTML = "";
+  const trips = filteredTrips();
+  const hasAnyTrips = state.trips.length > 0;
+  const hasTrips = trips.length > 0;
 
-  if (state.trips.length === 0) {
-    const empty = document.createElement("p");
-    empty.textContent = I18n.t("trip.emptyDashboard");
-    empty.style.color = "var(--muted)";
-    tripsList.append(empty);
+  tripsEmpty.classList.toggle("hidden", hasAnyTrips);
+  
+  if (!hasTrips) {
+    tripsList.classList.add("hidden");
+    if (hasAnyTrips) {
+      tripsList.classList.remove("hidden");
+      const msg = document.createElement("p");
+      msg.className = "empty-line";
+      msg.textContent = I18n.t("trip.noMatch");
+      tripsList.append(msg);
+    }
     return;
   }
 
-  state.trips.forEach((trip) => {
+  tripsList.classList.remove("hidden");
+
+  trips.forEach((trip) => {
+    const currency = trip.currency || "PLN";
+    const spent = tripSpent(trip);
+    const ratio = tripRatio(trip);
+
     const card = document.createElement("article");
     card.className = "trip-card";
+    card.innerHTML = `
+      <div class="trip-card-title">
+        <h3>${escapeHtml(trip.name)}</h3>
+        <p>${escapeHtml(trip.destination)}${trip.country ? ` · ${escapeHtml(trip.country)}` : ""}</p>
+      </div>
+      <div class="trip-card-meta">
+        ${ICONS.calendar}
+        <span>${formatDate(trip.startDate)} → ${formatDate(trip.endDate)}</span>
+      </div>
+      <div class="trip-card-budget">
+        <div class="progress">
+          <div class="progress-fill${ratio > 100 ? " over" : ""}" style="width:${ratio}%"></div>
+        </div>
+        <div class="budget-line">
+          <span>${escapeHtml(I18n.t("details.spent"))}: <strong>${formatCurrency(spent, currency)}</strong></span>
+          <span><strong>${formatCurrency(trip.budget, currency)}</strong></span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full trip-open-btn" type="button">${escapeHtml(I18n.t("trip.openTrip"))}</button>
+    `;
 
-    const info = document.createElement("div");
-    const title = document.createElement("h3");
-    title.textContent = trip.name;
-    const meta = document.createElement("p");
-    meta.textContent = `${trip.destination} · ${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}`;
-
-    info.append(title, meta);
-
-    const actions = document.createElement("div");
-    const viewButton = document.createElement("button");
-    viewButton.textContent = I18n.t("trip.viewTrip");
-    viewButton.className = "btn-secondary";
-    viewButton.addEventListener("click", () => openTripDetails(trip.id));
-
-    actions.append(viewButton);
-    card.append(info, actions);
-
+    const openBtn = card.querySelector(".trip-open-btn");
+    openBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openTripDetails(trip.id);
+    });
+    card.addEventListener("click", () => openTripDetails(trip.id));
     tripsList.append(card);
   });
 }
 
-function showTripDetailsPanel(show) {
-  tripDetailsPanel.classList.toggle("hidden", !show);
-}
+// ---- Trip detail ---------------------------------------------------------
 
 function openTripDetails(tripId) {
   state.activeTripId = tripId;
+  state.activeTab = "itinerary";
   renderTripDetails();
+  showDetail();
 }
 
 function renderTripDetails() {
   const trip = getActiveTrip();
+  if (!trip) return;
 
-  if (!trip) {
-    showTripDetailsPanel(false);
-    return;
-  }
-
-  showTripDetailsPanel(true);
   activeTripCard.innerHTML = `
-    <div>
-      <h3>${trip.name}</h3>
-      <p>${trip.destination}${trip.country ? ` (${trip.country})` : ""}</p>
-      <p>${formatDate(trip.startDate)} → ${formatDate(trip.endDate)}</p>
-    </div>
-    <div>
-      <p><strong>${I18n.t("trip.budgetLabel")}</strong> ${formatCurrency(trip.budget, trip.currency)}</p>
-      <p><strong>${I18n.t("trip.currencyLabel")}</strong> ${trip.currency || "PLN"}</p>
-      <p><strong>${I18n.t("trip.notesLabel")}</strong> ${trip.notes || I18n.t("trip.noNotes")}</p>
+    <h2>${escapeHtml(trip.name)}</h2>
+    <div class="hero-sub">${escapeHtml(trip.destination)}${trip.country ? ` · ${escapeHtml(trip.country)}` : ""}</div>
+    <div class="detail-hero-meta">
+      <span class="hero-meta-item">${ICONS.calendar} ${formatDate(trip.startDate)} → ${formatDate(trip.endDate)}</span>
+      <span class="hero-meta-item">${ICONS.wallet} ${formatCurrency(trip.budget, trip.currency || "PLN")}</span>
     </div>
   `;
 
   destinationNotes.value = trip.destinationNotes || "";
+  populateItineraryDayOptions(trip);
   renderItinerary(trip);
   renderExpenses(trip);
   renderBudget(trip);
   renderDestinationInfo(trip);
-  populateItineraryDayOptions(trip);
+  switchTab(state.activeTab);
 }
 
 function renderItinerary(trip) {
   itineraryList.innerHTML = "";
   if (!trip.itinerary || trip.itinerary.length === 0) {
-    const message = document.createElement("p");
-    message.textContent = I18n.t("itinerary.empty");
-    message.style.color = "var(--muted)";
-    itineraryList.append(message);
+    itineraryList.append(emptyLine(I18n.t("itinerary.empty")));
     return;
   }
 
@@ -244,21 +400,16 @@ function renderItinerary(trip) {
       const itemElement = document.createElement("div");
       itemElement.className = "list-item";
       itemElement.innerHTML = `
-        <div>
-          <strong>${I18n.t("itinerary.dayFormat", { 0: item.day })}</strong> · ${item.time}
-        </div>
-        <div>
-          <p>${item.title}</p>
-          <span>${item.description || I18n.t("itinerary.noDetails")}</span>
+        <div class="list-item-body">
+          <div class="list-item-title">${escapeHtml(item.title)}</div>
+          <div class="list-item-sub">${I18n.t("itinerary.dayFormat", { 0: item.day })} · ${escapeHtml(item.time)}${item.description ? ` — ${escapeHtml(item.description)}` : ""}</div>
         </div>
       `;
 
       const removeButton = document.createElement("button");
       removeButton.textContent = I18n.t("itinerary.remove");
-      removeButton.className = "btn-secondary";
-      removeButton.addEventListener("click", () => {
-        removeItineraryItem(trip.id, item.id);
-      });
+      removeButton.className = "btn btn-ghost";
+      removeButton.addEventListener("click", () => removeItineraryItem(trip.id, item.id));
 
       itemElement.append(removeButton);
       itineraryList.append(itemElement);
@@ -282,10 +433,7 @@ function populateItineraryDayOptions(trip) {
 function renderExpenses(trip) {
   expenseList.innerHTML = "";
   if (!trip.expenses || trip.expenses.length === 0) {
-    const message = document.createElement("p");
-    message.textContent = I18n.t("expense.empty");
-    message.style.color = "var(--muted)";
-    expenseList.append(message);
+    expenseList.append(emptyLine(I18n.t("expense.empty")));
     return;
   }
 
@@ -295,27 +443,22 @@ function renderExpenses(trip) {
     .sort((a, b) => new Date(a.addedAt) - new Date(b.addedAt))
     .forEach((expense) => {
       const plnAmount = expense.amount * (expense.rateToPln || 1);
-      const plnText = currency !== "PLN" ? ` (≈ ${formatCurrency(plnAmount, "PLN")})` : "";
+      const plnText =
+        currency !== "PLN" ? ` (≈ ${formatCurrency(plnAmount, "PLN")})` : "";
 
       const itemElement = document.createElement("div");
       itemElement.className = "list-item";
       itemElement.innerHTML = `
-        <div>
-          <strong>${expense.category}</strong> · ${formatCurrency(expense.amount, currency)}
-          <span class="currency-conversion">${plnText}</span>
-        </div>
-        <div>
-          <p>${expense.description || I18n.t("expense.noDescription")}</p>
-          <span>${new Date(expense.addedAt).toLocaleString()}</span>
+        <div class="list-item-body">
+          <div class="list-item-title">${escapeHtml(expense.category)} · ${formatCurrency(expense.amount, currency)}</div>
+          <div class="list-item-sub">${escapeHtml(expense.description || I18n.t("expense.noDescription"))}${plnText}</div>
         </div>
       `;
 
       const removeButton = document.createElement("button");
       removeButton.textContent = I18n.t("expense.remove");
-      removeButton.className = "btn-secondary";
-      removeButton.addEventListener("click", () => {
-        removeExpense(trip.id, expense.id);
-      });
+      removeButton.className = "btn btn-ghost";
+      removeButton.addEventListener("click", () => removeExpense(trip.id, expense.id));
 
       itemElement.append(removeButton);
       expenseList.append(itemElement);
@@ -324,22 +467,25 @@ function renderExpenses(trip) {
 
 function renderBudget(trip) {
   const currency = trip.currency || "PLN";
-  const spentInCurrency = trip.expenses.reduce((total, item) => total + Number(item.amount), 0);
-  const spentInPln = trip.expenses.reduce((total, item) => total + Number(item.amount) * (item.rateToPln || 1), 0);
+  const spentInCurrency = tripSpent(trip);
+  const spentInPln = (trip.expenses || []).reduce(
+    (total, item) => total + Number(item.amount) * (item.rateToPln || 1),
+    0
+  );
   const remaining = Math.max(0, Number(trip.budget) - spentInCurrency);
   const ratio = trip.budget > 0 ? Math.min(100, (spentInCurrency / trip.budget) * 100) : 0;
+  const over = spentInCurrency > Number(trip.budget);
 
   budgetTotal.textContent = formatCurrency(trip.budget, currency);
   budgetSpent.textContent = I18n.t("budget.spent", { 0: formatCurrency(spentInCurrency, currency) });
   budgetRemaining.textContent = I18n.t("budget.remaining", { 0: formatCurrency(remaining, currency) });
   budgetProgress.style.width = `${ratio}%`;
-  budgetProgress.style.background = ratio > 100 ? "#ef4444" : "linear-gradient(90deg, #10b981 0%, #22c55e 100%)";
+  budgetProgress.classList.toggle("over", over);
 
-  if (currency !== "PLN") {
-    budgetPlnEquivalent.textContent = I18n.t("budget.plnSpent", { 0: formatCurrency(spentInPln, "PLN") });
-  } else {
-    budgetPlnEquivalent.textContent = "";
-  }
+  budgetPlnEquivalent.textContent =
+    currency !== "PLN"
+      ? I18n.t("budget.plnSpent", { 0: formatCurrency(spentInPln, "PLN") })
+      : "";
 }
 
 function renderDestinationInfo(trip) {
@@ -348,14 +494,25 @@ function renderDestinationInfo(trip) {
   destinationTips.textContent = trip.destinationInfo?.tips || I18n.t("destination.na");
 }
 
+function emptyLine(text) {
+  const el = document.createElement("p");
+  el.className = "empty-line";
+  el.textContent = text;
+  return el;
+}
+
+// ---- Actions -------------------------------------------------------------
+
 async function removeItineraryItem(tripId, itemId) {
   try {
     const updatedTrip = await fetchJson(`${API_BASE}/${tripId}/itinerary/${itemId}`, { method: "DELETE" });
     const index = state.trips.findIndex((t) => t.id === tripId);
     if (index !== -1) state.trips[index] = updatedTrip;
     renderTripDetails();
+    renderTrips();
+    showToast(I18n.t("toast.removed"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -365,8 +522,10 @@ async function removeExpense(tripId, expenseId) {
     const index = state.trips.findIndex((t) => t.id === tripId);
     if (index !== -1) state.trips[index] = updatedTrip;
     renderTripDetails();
+    renderTrips();
+    showToast(I18n.t("toast.removed"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -411,12 +570,13 @@ async function createTrip(event) {
       body: JSON.stringify(trip),
     });
     state.trips.push(created);
+    closeTripModal();
+    renderStats();
     renderTrips();
-    updateTripSummary();
-    resetTripForm();
+    showToast(I18n.t("toast.tripCreated"));
     openTripDetails(created.id);
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -440,9 +600,11 @@ async function addItineraryItem(event) {
     const index = state.trips.findIndex((t) => t.id === trip.id);
     if (index !== -1) state.trips[index] = updatedTrip;
     renderTripDetails();
+    renderTrips();
     itineraryForm.reset();
+    showToast(I18n.t("toast.itineraryAdded"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -465,9 +627,11 @@ async function addExpense(event) {
     const index = state.trips.findIndex((t) => t.id === trip.id);
     if (index !== -1) state.trips[index] = updatedTrip;
     renderTripDetails();
+    renderTrips();
     expenseForm.reset();
+    showToast(I18n.t("toast.expenseAdded"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -480,8 +644,9 @@ async function loadDestinationInfo() {
     const index = state.trips.findIndex((t) => t.id === trip.id);
     if (index !== -1) state.trips[index] = updatedTrip;
     renderTripDetails();
+    showToast(I18n.t("toast.infoLoaded"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -496,24 +661,27 @@ async function saveTravelerNotes() {
     });
     const index = state.trips.findIndex((t) => t.id === trip.id);
     if (index !== -1) state.trips[index] = updatedTrip;
-    renderTripDetails();
+    showToast(I18n.t("toast.notesSaved"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
 async function deleteActiveTrip() {
   if (!state.activeTripId) return;
 
+  const ok = await showConfirm(I18n.t("delete.confirm"));
+  if (!ok) return;
+
   try {
     await fetchJson(`${API_BASE}/${state.activeTripId}`, { method: "DELETE" });
     state.trips = state.trips.filter((trip) => trip.id !== state.activeTripId);
-    state.activeTripId = null;
+    showDashboard();
+    renderStats();
     renderTrips();
-    updateTripSummary();
-    showTripDetailsPanel(false);
+    showToast(I18n.t("toast.tripDeleted"));
   } catch {
-    // ignore
+    showToast(I18n.t("toast.error"), "error");
   }
 }
 
@@ -528,10 +696,13 @@ async function exportTrips() {
     anchor.download = "travel-plans.json";
     anchor.click();
     URL.revokeObjectURL(url);
+    showToast(I18n.t("toast.exported"));
   } catch {
-    alert(I18n.t("export.failed"));
+    showToast(I18n.t("export.failed"), "error");
   }
 }
+
+// ---- Currencies & countries ---------------------------------------------
 
 async function loadCurrencies() {
   try {
@@ -545,7 +716,6 @@ async function loadCurrencies() {
 async function loadCountries() {
   try {
     state.countries = await fetchJson(COUNTRY_API_BASE, { method: "GET" });
-    populateCountryDropdown();
   } catch {
     state.countries = [];
   }
@@ -558,9 +728,12 @@ function populateCurrencyDropdown() {
   state.currencies.forEach((c) => {
     const option = document.createElement("option");
     option.value = c.code;
-    const displayName = lang === "pl" && c.namePl ? c.namePl
-      : lang === "es" && c.nameEs ? c.nameEs
-      : c.name;
+    const displayName =
+      lang === "pl" && c.namePl
+        ? c.namePl
+        : lang === "es" && c.nameEs
+        ? c.nameEs
+        : c.name;
     option.textContent = `${c.code} - ${displayName}`;
     if (c.code === selected || (!selected && c.code === "PLN")) option.selected = true;
     tripCurrencySelect.append(option);
@@ -568,10 +741,6 @@ function populateCurrencyDropdown() {
 }
 
 let highlightedCountryIndex = -1;
-
-function populateCountryDropdown() {
-  renderCountryOptions(state.countries);
-}
 
 function renderCountryOptions(countries) {
   countryDropdown.innerHTML = "";
@@ -585,16 +754,13 @@ function renderCountryOptions(countries) {
     return;
   }
 
-  countries.forEach((c, index) => {
+  countries.forEach((c) => {
     const option = document.createElement("div");
     option.className = "searchable-select-option";
-    if (c.country === tripCountryHidden.value) {
-      option.classList.add("selected");
-    }
+    if (c.country === tripCountryHidden.value) option.classList.add("selected");
     option.textContent = c.country;
     option.dataset.currencyCode = c.currencyCode;
     option.dataset.country = c.country;
-    option.dataset.index = String(index);
     option.addEventListener("mousedown", (e) => {
       e.preventDefault();
       selectCountry(c.country, c.currencyCode);
@@ -607,9 +773,7 @@ function selectCountry(countryName, currencyCode) {
   tripCountryHidden.value = countryName;
   countrySearchInput.value = countryName;
   countryDropdown.classList.remove("open");
-  if (currencyCode) {
-    tripCurrencySelect.value = currencyCode;
-  }
+  if (currencyCode) tripCurrencySelect.value = currencyCode;
 }
 
 function openCountryDropdown() {
@@ -624,11 +788,7 @@ function openCountryDropdown() {
 function closeCountryDropdown() {
   countryDropdown.classList.remove("open");
   highlightedCountryIndex = -1;
-  if (!tripCountryHidden.value) {
-    countrySearchInput.value = "";
-  } else {
-    countrySearchInput.value = tripCountryHidden.value;
-  }
+  countrySearchInput.value = tripCountryHidden.value || "";
 }
 
 function navigateCountryOptions(e) {
@@ -663,6 +823,8 @@ function navigateCountryOptions(e) {
   }
 }
 
+// ---- Language ------------------------------------------------------------
+
 async function onLanguageChanged(lang) {
   const token = getToken();
   if (!token) return;
@@ -685,47 +847,108 @@ async function onLanguageChanged(lang) {
   }
 }
 
+// ---- Init ----------------------------------------------------------------
+
+function renderAll() {
+  renderStats();
+  renderTrips();
+  if (getActiveTrip()) renderTripDetails();
+}
+
+function bindStatFilters() {
+  document.querySelectorAll(".stat-card").forEach((card) => {
+    card.addEventListener("click", () => setFilter(card.dataset.filter));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setFilter(card.dataset.filter);
+      }
+    });
+  });
+}
+
+function bindEvents() {
+  newTripButton.addEventListener("click", openTripModal);
+  emptyCta.addEventListener("click", openTripModal);
+  closeTripModalBtn.addEventListener("click", closeTripModal);
+  resetTripButton.addEventListener("click", resetTripForm);
+  tripModal.addEventListener("click", (e) => {
+    if (e.target === tripModal) closeTripModal();
+  });
+  tripForm.addEventListener("submit", createTrip);
+
+  backButton.addEventListener("click", showDashboard);
+  deleteTripButton.addEventListener("click", deleteActiveTrip);
+
+  tabItinerary.addEventListener("click", () => switchTab("itinerary"));
+  tabBudget.addEventListener("click", () => switchTab("budget"));
+  tabDestination.addEventListener("click", () => switchTab("destination"));
+
+  itineraryForm.addEventListener("submit", addItineraryItem);
+  expenseForm.addEventListener("submit", addExpense);
+  loadDestinationButton.addEventListener("click", loadDestinationInfo);
+  saveNotesButton.addEventListener("click", saveTravelerNotes);
+  exportButton.addEventListener("click", exportTrips);
+  logoutButton.addEventListener("click", logout);
+
+  confirmOk.addEventListener("click", () => closeConfirm(true));
+  confirmCancel.addEventListener("click", () => closeConfirm(false));
+  confirmModal.addEventListener("click", (e) => {
+    if (e.target === confirmModal) closeConfirm(false);
+  });
+
+  countrySearchInput.addEventListener("focus", openCountryDropdown);
+  countrySearchInput.addEventListener("input", openCountryDropdown);
+  countrySearchInput.addEventListener("keydown", navigateCountryOptions);
+  countrySearchInput.addEventListener("blur", closeCountryDropdown);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (confirmModal.classList.contains("open")) closeConfirm(false);
+      else if (tripModal.classList.contains("open")) closeTripModal();
+    }
+  });
+
+  bindStatFilters();
+}
+
 async function init() {
   if (!checkAuth()) return;
+
+  // Attach event listeners first so the UI is interactive immediately,
+  // even while the async data below is still loading.
+  bindEvents();
+
+  try {
+    Theme.init();
+  } catch {
+    // ignore theme failures
+  }
 
   await I18n.init();
 
   usernameDisplay.textContent = localStorage.getItem("username") || "";
 
-  if (languageSelect) {
-    languageSelect.value = I18n.getLanguage();
-    languageSelect.addEventListener("change", async (e) => {
-      await I18n.setLanguage(e.target.value);
-      refreshAll();
+  if (languageSwitch) {
+    const updateActiveLang = () => {
+      const lang = I18n.getLanguage();
+      languageSwitch.querySelectorAll(".lang-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.lang === lang);
+      });
+    };
+    updateActiveLang();
+    languageSwitch.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await I18n.setLanguage(btn.dataset.lang);
+        updateActiveLang();
+        renderAll();
+        if (state.currencies.length > 0) populateCurrencyDropdown();
+      });
     });
   }
 
-  await loadCurrencies();
-  await loadCountries();
-  await loadTrips();
-  refreshAll();
-
-  tripForm.addEventListener("submit", createTrip);
-  itineraryForm.addEventListener("submit", addItineraryItem);
-  expenseForm.addEventListener("submit", addExpense);
-  loadDestinationButton.addEventListener("click", loadDestinationInfo);
-  saveNotesButton.addEventListener("click", saveTravelerNotes);
-  deleteTripButton.addEventListener("click", deleteActiveTrip);
-  exportButton.addEventListener("click", exportTrips);
-  logoutButton.addEventListener("click", logout);
-  countrySearchInput.addEventListener("focus", openCountryDropdown);
-  countrySearchInput.addEventListener("input", openCountryDropdown);
-  countrySearchInput.addEventListener("keydown", navigateCountryOptions);
-  countrySearchInput.addEventListener("blur", closeCountryDropdown);
-}
-
-function refreshAll() {
-  renderTrips();
-  updateTripSummary();
-  renderTripDetails();
-  if (state.currencies.length > 0) {
-    populateCurrencyDropdown();
-  }
+  await Promise.all([loadCurrencies(), loadCountries(), loadTrips()]);
+  renderAll();
 }
 
 init();
