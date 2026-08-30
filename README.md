@@ -117,6 +117,25 @@ docker-compose down -v
 - **Notes**: Save personal notes and tips for each destination
 - **Data Export**: Export all trips as JSON
 
+## Specs
+
+Features are specified before implementation using a spec-driven development
+workflow. See [`specs/README.md`](specs/README.md) for the process and
+[`specs/000-template.md`](specs/000-template.md) for the template.
+
+| # | Spec |
+|---|------|
+| 001 | Account & password management |
+| 002 | Trip editing (full CRUD) |
+| 003 | Expense analytics & category breakdown |
+| 004 | Dashboard search, sort & filter |
+| 005 | Packing checklist |
+| 006 | Collaborative trip sharing |
+| 007 | Email reminders for upcoming trips |
+| 008 | Document attachments |
+| 009 | Live destination information (weather & currency APIs) |
+| 010 | API documentation (OpenAPI) + data import/export |
+
 ## Data Storage
 
 The application uses **PostgreSQL** running in a Docker container with **Spring Data JPA** for persistence. All trips, itinerary items, and expenses are stored in the database and survive application restarts.
