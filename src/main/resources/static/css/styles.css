@@ -1235,6 +1235,21 @@ body.modal-open {
   background: var(--surface-2);
 }
 
+.auth-form-link {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.auth-form-link a {
+  color: var(--accent, var(--primary));
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.auth-form-link a:hover {
+  text-decoration: underline;
+}
+
 .auth-footer {
   text-align: center;
   color: var(--muted);
@@ -1247,6 +1262,174 @@ body.modal-open {
   color: var(--muted);
   font-size: 0.85rem;
   padding: 1.5rem 0 2.5rem;
+}
+
+/* ============================================================
+   Settings
+   ============================================================ */
+
+.settings-header {
+  margin: 0 0 1.5rem;
+}
+
+.settings-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+
+.settings-subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.settings-nav {
+  position: sticky;
+  top: calc(var(--header-h) + 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.6rem;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.settings-nav-item .icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.settings-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.settings-nav-item.active {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.settings-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-pane {
+  display: none;
+}
+
+.settings-pane.active {
+  display: block;
+}
+
+.settings-pane-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+
+.settings-pane-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.settings-field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.settings-segment {
+  display: inline-flex;
+  gap: 0.3rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem;
+}
+
+.settings-segment-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-segment-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.field-group input:disabled {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.danger-zone {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.danger-zone-title {
+  color: var(--danger);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.danger-zone-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
 }
 
 /* ============================================================
@@ -1275,6 +1458,29 @@ body.modal-open {
 
   .detail-hero-meta {
     gap: 0.9rem;
+  }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.5rem;
+  }
+
+  .settings-nav-item {
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 0.6rem 0.8rem;
+  }
+
+  .settings-panel {
+    padding: 1.25rem;
   }
 }
 

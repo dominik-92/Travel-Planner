@@ -1,5 +1,6 @@
 package com.example.travelplanner.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -16,6 +17,16 @@ public class User {
     private String password;
     private String createdAt;
     private String language = "en";
+    private String currency = "PLN";
+
+    @Column(name = "password_version", nullable = false)
+    private int passwordVersion = 0;
+
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private String resetTokenExpiresAt;
 
     public User() {
     }
@@ -79,5 +90,37 @@ public class User {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public int getPasswordVersion() {
+        return passwordVersion;
+    }
+
+    public void setPasswordVersion(int passwordVersion) {
+        this.passwordVersion = passwordVersion;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public String getResetTokenExpiresAt() {
+        return resetTokenExpiresAt;
+    }
+
+    public void setResetTokenExpiresAt(String resetTokenExpiresAt) {
+        this.resetTokenExpiresAt = resetTokenExpiresAt;
     }
 }

@@ -33,6 +33,13 @@ class UserTest {
     }
 
     @Test
+    void passwordVersionDefaultsToZero() {
+        User user = new User();
+
+        assertEquals(0, user.getPasswordVersion());
+    }
+
+    @Test
     void gettersAndSetters() {
         User user = new User();
         user.setId("u2");
@@ -41,6 +48,9 @@ class UserTest {
         user.setPassword("secret");
         user.setCreatedAt("2026-06-01T00:00:00Z");
         user.setLanguage("es");
+        user.setPasswordVersion(3);
+        user.setResetToken("tok");
+        user.setResetTokenExpiresAt("2026-06-02T00:00:00Z");
 
         assertEquals("u2", user.getId());
         assertEquals("jane", user.getUsername());
@@ -48,5 +58,8 @@ class UserTest {
         assertEquals("secret", user.getPassword());
         assertEquals("2026-06-01T00:00:00Z", user.getCreatedAt());
         assertEquals("es", user.getLanguage());
+        assertEquals(3, user.getPasswordVersion());
+        assertEquals("tok", user.getResetToken());
+        assertEquals("2026-06-02T00:00:00Z", user.getResetTokenExpiresAt());
     }
 }

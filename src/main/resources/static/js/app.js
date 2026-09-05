@@ -111,6 +111,7 @@ let state = {
   filter: "all",
   currencies: [],
   countries: [],
+  defaultCurrency: "PLN",
 };
 
 // ---- API / formatting ----------------------------------------------------
@@ -713,6 +714,15 @@ async function loadCurrencies() {
   }
 }
 
+async function loadDefaultCurrency() {
+  try {
+    const profile = await fetchJson(`${USER_API}/profile`, { method: "GET" });
+    if (profile && profile.currency) state.defaultCurrency = profile.currency;
+  } catch {
+    // ignore; keep PLN
+  }
+}
+
 async function loadCountries() {
   try {
     state.countries = await fetchJson(COUNTRY_API_BASE, { method: "GET" });
@@ -735,7 +745,7 @@ function populateCurrencyDropdown() {
         ? c.nameEs
         : c.name;
     option.textContent = `${c.code} - ${displayName}`;
-    if (c.code === selected || (!selected && c.code === "PLN")) option.selected = true;
+    if (c.code === selected || (!selected && c.code === state.defaultCurrency)) option.selected = true;
     tripCurrencySelect.append(option);
   });
 }
@@ -947,6 +957,7 @@ async function init() {
     });
   }
 
+  await loadDefaultCurrency();
   await Promise.all([loadCurrencies(), loadCountries(), loadTrips()]);
   renderAll();
 }

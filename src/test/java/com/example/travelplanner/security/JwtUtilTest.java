@@ -47,6 +47,20 @@ class JwtUtilTest {
     }
 
     @Test
+    void generateTokenStoresPasswordVersionClaim() {
+        String token = jwtUtil.generateToken("john", "en", 5);
+
+        assertEquals(5, jwtUtil.extractPasswordVersion(token));
+    }
+
+    @Test
+    void generateTokenDefaultsPasswordVersionToZero() {
+        String token = jwtUtil.generateToken("john", "en");
+
+        assertEquals(0, jwtUtil.extractPasswordVersion(token));
+    }
+
+    @Test
     void extractUsernameReturnsCorrectSubject() {
         String token = jwtUtil.generateToken("john");
 
