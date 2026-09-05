@@ -24,13 +24,18 @@ public class JwtUtil {
     }
 
     public String generateToken(String username) {
-        return generateToken(username, "en");
+        return generateToken(username, "en", 0);
     }
 
     public String generateToken(String username, String language) {
+        return generateToken(username, language, 0);
+    }
+
+    public String generateToken(String username, String language, int passwordVersion) {
         return Jwts.builder()
                 .subject(username)
                 .claim("language", language)
+                .claim("passwordVersion", passwordVersion)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
@@ -43,6 +48,11 @@ public class JwtUtil {
 
     public String extractLanguage(String token) {
         return extractClaims(token).get("language", String.class);
+    }
+
+    public int extractPasswordVersion(String token) {
+        Integer version = extractClaims(token).get("passwordVersion", Integer.class);
+        return version != null ? version : 0;
     }
 
     public boolean validateToken(String token) {

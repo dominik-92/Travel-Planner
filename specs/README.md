@@ -55,3 +55,4 @@ Every spec follows the template in `000-template.md`:
 | 008 | [Document attachments](008-document-attachments.md) |
 | 009 | [Live destination information](009-live-destination-info.md) |
 | 010 | [API documentation + import/export](010-api-docs-import-export.md) |
+| 011 | [Settings layout & preferences](011-settings-layout.md) |

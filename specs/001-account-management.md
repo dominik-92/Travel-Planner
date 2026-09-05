@@ -1,6 +1,6 @@
 # 001 — Account & Password Management
 
-> **Status**: Proposed
+> **Status**: In progress
 
 ## 1. Overview & motivation
 

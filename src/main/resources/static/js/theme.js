@@ -21,6 +21,12 @@ const Theme = {
     this.apply();
   },
 
+  set(value) {
+    const normalized = ["light", "dark", "system"].includes(value) ? value : "system";
+    localStorage.setItem("theme", normalized);
+    this.apply();
+  },
+
   init() {
     this.apply();
 

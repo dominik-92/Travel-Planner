@@ -64,4 +64,38 @@ class UserRepositoryTest {
     void existsByEmailReturnsFalse() {
         assertFalse(userRepository.existsByEmail("unknown@test.com"));
     }
+
+    @Test
+    void findByEmailReturnsUser() {
+        Optional<User> result = userRepository.findByEmail("john@test.com");
+
+        assertTrue(result.isPresent());
+        assertEquals("john", result.get().getUsername());
+    }
+
+    @Test
+    void findByEmailReturnsEmptyForUnknown() {
+        Optional<User> result = userRepository.findByEmail("unknown@test.com");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findByResetTokenReturnsUser() {
+        User user = userRepository.findByUsername("john").orElseThrow();
+        user.setResetToken("reset-token");
+        userRepository.save(user);
+
+        Optional<User> result = userRepository.findByResetToken("reset-token");
+
+        assertTrue(result.isPresent());
+        assertEquals("john", result.get().getUsername());
+    }
+
+    @Test
+    void findByResetTokenReturnsEmptyForUnknown() {
+        Optional<User> result = userRepository.findByResetToken("no-such-token");
+
+        assertTrue(result.isEmpty());
+    }
 }
