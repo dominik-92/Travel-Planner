@@ -1,5 +1,6 @@
 package com.example.travelplanner.controller;
 
+import com.example.travelplanner.dto.ExpenseSummaryResponse;
 import com.example.travelplanner.model.Expense;
 import com.example.travelplanner.model.ItineraryItem;
 import com.example.travelplanner.model.Trip;
@@ -78,6 +79,11 @@ public class TripController {
     @DeleteMapping("/{tripId}/expenses/{expenseId}")
     public Trip removeExpense(@PathVariable String tripId, @PathVariable String expenseId, Authentication authentication) {
         return tripService.removeExpense(tripId, expenseId, getAuthenticatedUser(authentication));
+    }
+
+    @GetMapping("/{tripId}/expenses/summary")
+    public ExpenseSummaryResponse getExpenseSummary(@PathVariable String tripId, Authentication authentication) {
+        return tripService.getExpenseSummary(tripId, getAuthenticatedUser(authentication));
     }
 
     @PostMapping("/{tripId}/destination-info")

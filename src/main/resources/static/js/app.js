@@ -83,7 +83,9 @@ const budgetTotal = document.getElementById("budget-total");
 const budgetSpent = document.getElementById("budget-spent");
 const budgetRemaining = document.getElementById("budget-remaining");
 const budgetProgress = document.getElementById("budget-progress");
-const budgetPlnEquivalent = document.getElementById("budget-pln-equivalent");
+const budgetReportingEquivalent = document.getElementById("budget-reporting-equivalent");
+const categoryBreakdown = document.getElementById("category-breakdown");
+const categoryBreakdownList = document.getElementById("category-breakdown-list");
 
 const expenseForm = document.getElementById("expense-form");
 const expenseList = document.getElementById("expense-list");
@@ -117,7 +119,21 @@ let state = {
   countries: [],
   defaultCurrency: "PLN",
   editingTripId: null,
+  summary: null,
 };
+
+const CATEGORY_I18N_KEYS = {
+  Accommodation: "expense.categoryAccommodation",
+  Food: "expense.categoryFood",
+  Transport: "expense.categoryTransport",
+  Activities: "expense.categoryActivities",
+  Misc: "expense.categoryMisc",
+};
+
+function categoryLabel(category) {
+  const key = CATEGORY_I18N_KEYS[category];
+  return key ? I18n.t(key) : category;
+}
 
 // ---- API / formatting ----------------------------------------------------
 
@@ -417,9 +433,10 @@ function openTripDetails(tripId) {
   showDetail();
 }
 
-function renderTripDetails() {
+async function renderTripDetails() {
   const trip = getActiveTrip();
   if (!trip) return;
+  state.summary = null;
 
   activeTripCard.innerHTML = `
     <h2>${escapeHtml(trip.name)}</h2>
@@ -435,8 +452,17 @@ function renderTripDetails() {
   renderItinerary(trip);
   renderExpenses(trip);
   renderBudget(trip);
+  renderCategoryBreakdown(null);
   renderDestinationInfo(trip);
   switchTab(state.activeTab);
+
+  try {
+    state.summary = await fetchJson(`${API_BASE}/${trip.id}/expenses/summary`, { method: "GET" });
+  } catch {
+    state.summary = null;
+  }
+  renderBudget(trip);
+  renderCategoryBreakdown(state.summary);
 }
 
 function renderItinerary(trip) {
@@ -502,7 +528,7 @@ function renderExpenses(trip) {
       itemElement.className = "list-item";
       itemElement.innerHTML = `
         <div class="list-item-body">
-          <div class="list-item-title">${escapeHtml(expense.category)} · ${formatCurrency(expense.amount, currency)}</div>
+          <div class="list-item-title">${escapeHtml(categoryLabel(expense.category))} · ${formatCurrency(expense.amount, currency)}</div>
           <div class="list-item-sub">${escapeHtml(expense.description || I18n.t("expense.noDescription"))}${plnText}</div>
         </div>
       `;
@@ -519,11 +545,8 @@ function renderExpenses(trip) {
 
 function renderBudget(trip) {
   const currency = trip.currency || "PLN";
-  const spentInCurrency = tripSpent(trip);
-  const spentInPln = (trip.expenses || []).reduce(
-    (total, item) => total + Number(item.amount) * (item.rateToPln || 1),
-    0
-  );
+  const summary = state.summary;
+  const spentInCurrency = summary ? summary.totalSpent : tripSpent(trip);
   const remaining = Math.max(0, Number(trip.budget) - spentInCurrency);
   const ratio = trip.budget > 0 ? Math.min(100, (spentInCurrency / trip.budget) * 100) : 0;
   const over = spentInCurrency > Number(trip.budget);
@@ -534,10 +557,59 @@ function renderBudget(trip) {
   budgetProgress.style.width = `${ratio}%`;
   budgetProgress.classList.toggle("over", over);
 
-  budgetPlnEquivalent.textContent =
-    currency !== "PLN"
-      ? I18n.t("budget.plnSpent", { 0: formatCurrency(spentInPln, "PLN") })
-      : "";
+  const reportingCurrency = summary ? summary.reportingCurrency : null;
+  const showReporting =
+    summary &&
+    summary.totalSpentInReportingCurrency != null &&
+    reportingCurrency &&
+    reportingCurrency !== currency;
+
+  if (showReporting) {
+    const prefix = summary.conversionApproximate ? "≈ " : "";
+    budgetReportingEquivalent.textContent = I18n.t("budget.reportingSpent", {
+      0: prefix + formatCurrency(summary.totalSpentInReportingCurrency, reportingCurrency),
+    });
+  } else {
+    budgetReportingEquivalent.textContent = "";
+  }
+}
+
+function renderCategoryBreakdown(summary) {
+  categoryBreakdownList.innerHTML = "";
+  if (!summary || !summary.categories || summary.categories.length === 0) {
+    categoryBreakdown.classList.add("hidden");
+    return;
+  }
+  categoryBreakdown.classList.remove("hidden");
+
+  const currency = summary.currency;
+  const reportingCurrency = summary.reportingCurrency;
+  const convert =
+    summary.totalSpentInReportingCurrency != null &&
+    reportingCurrency &&
+    reportingCurrency !== currency;
+
+  summary.categories.forEach((cat) => {
+    const pct = Math.min(100, Math.max(0, Number(cat.percentage)));
+    const reportingText =
+      convert && cat.amountInReportingCurrency != null
+        ? ` · ${summary.conversionApproximate ? "≈ " : ""}${formatCurrency(cat.amountInReportingCurrency, reportingCurrency)}`
+        : "";
+
+    const row = document.createElement("div");
+    row.className = "category-row";
+    row.innerHTML = `
+      <div class="category-row-head">
+        <span class="category-row-name">${escapeHtml(categoryLabel(cat.category))}</span>
+        <span class="category-row-amount">${formatCurrency(cat.amount, currency)}${reportingText}</span>
+      </div>
+      <div class="progress category-progress">
+        <div class="progress-fill${cat.percentage > 100 ? " over" : ""}" style="width:${pct}%"></div>
+      </div>
+      <div class="category-row-pct">${Number(cat.percentage).toFixed(1)}%</div>
+    `;
+    categoryBreakdownList.append(row);
+  });
 }
 
 function renderDestinationInfo(trip) {

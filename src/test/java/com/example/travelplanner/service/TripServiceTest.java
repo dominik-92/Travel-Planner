@@ -1,6 +1,9 @@
 package com.example.travelplanner.service;
 
+import com.example.travelplanner.dto.CategoryExpenseSummary;
+import com.example.travelplanner.dto.ExpenseSummaryResponse;
 import com.example.travelplanner.model.DestinationInfo;
+import com.example.travelplanner.model.ExchangeRate;
 import com.example.travelplanner.model.Expense;
 import com.example.travelplanner.model.ItineraryItem;
 import com.example.travelplanner.model.Trip;
@@ -13,12 +16,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +34,9 @@ class TripServiceTest {
 
     @Mock
     private CurrencyService currencyService;
+
+    @Mock
+    private ExchangeRateService exchangeRateService;
 
     @InjectMocks
     private TripService tripService;
@@ -588,5 +596,114 @@ class TripServiceTest {
         Trip result = tripService.updateDestinationNotes("t1", "My custom notes", user);
 
         assertEquals("My custom notes", result.getDestinationNotes());
+    }
+
+    @Test
+    void getExpenseSummaryGroupsAndComputesPercentages() {
+        trip.setCurrency("PLN");
+        trip.setBudget(1000.0);
+        trip.addExpense(new Expense("e1", "Food", 240.0, "dinner", "2026-08-01T12:00:00Z"));
+        trip.addExpense(new Expense("e2", "Accommodation", 300.0, "hotel", "2026-08-01T12:00:00Z"));
+        trip.addExpense(new Expense("e3", "Transport", 100.0, "taxi", "2026-08-01T12:00:00Z"));
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        ExpenseSummaryResponse result = tripService.getExpenseSummary("t1", user);
+
+        assertEquals("PLN", result.currency());
+        assertEquals("PLN", result.reportingCurrency());
+        assertEquals(640.0, result.totalSpent(), 0.001);
+        assertNull(result.totalSpentInReportingCurrency());
+        assertNull(result.conversionApproximate());
+        assertEquals(3, result.categories().size());
+
+        CategoryExpenseSummary first = result.categories().get(0);
+        assertEquals("Accommodation", first.category());
+        assertEquals(300.0, first.amount(), 0.001);
+        assertEquals(30.0, first.percentage(), 0.001);
+        assertNull(first.amountInReportingCurrency());
+    }
+
+    @Test
+    void getExpenseSummaryConvertsToReportingCurrency() {
+        trip.setCurrency("EUR");
+        trip.setBudget(1000.0);
+        trip.setStartDate("2020-01-01");
+        trip.setEndDate("2020-01-10");
+        user.setCurrency("USD");
+        trip.addExpense(new Expense("e1", "Food", 240.0, "dinner", "2020-01-02T12:00:00Z"));
+        trip.addExpense(new Expense("e2", "Accommodation", 300.0, "hotel", "2020-01-02T12:00:00Z"));
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+        when(exchangeRateService.resolve(anyString(), anyString(), any(LocalDate.class)))
+                .thenReturn(Optional.of(new ExchangeRate("EUR", "USD", 1.09, LocalDate.of(2020, 1, 1), "FRANKFURTER")));
+
+        ExpenseSummaryResponse result = tripService.getExpenseSummary("t1", user);
+
+        assertEquals("USD", result.reportingCurrency());
+        assertEquals(588.6, result.totalSpentInReportingCurrency(), 0.001);
+        assertEquals(Boolean.FALSE, result.conversionApproximate());
+        assertEquals("FRANKFURTER", result.conversionProvider());
+        assertEquals("2020-01-01", result.conversionRateDate());
+
+        CategoryExpenseSummary accommodation = result.categories().get(0);
+        assertEquals("Accommodation", accommodation.category());
+        assertEquals(327.0, accommodation.amountInReportingCurrency(), 0.001);
+    }
+
+    @Test
+    void getExpenseSummaryMarksFutureTripsApproximate() {
+        trip.setCurrency("EUR");
+        trip.setBudget(1000.0);
+        trip.setStartDate("2099-01-01");
+        trip.setEndDate("2099-01-10");
+        user.setCurrency("USD");
+        trip.addExpense(new Expense("e1", "Food", 100.0, "dinner", "2026-01-01T12:00:00Z"));
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+        when(exchangeRateService.resolve(anyString(), anyString(), any(LocalDate.class)))
+                .thenReturn(Optional.of(new ExchangeRate("EUR", "USD", 1.09, LocalDate.now(), "FRANKFURTER")));
+
+        ExpenseSummaryResponse result = tripService.getExpenseSummary("t1", user);
+
+        assertEquals(Boolean.TRUE, result.conversionApproximate());
+        assertEquals(109.0, result.totalSpentInReportingCurrency(), 0.001);
+    }
+
+    @Test
+    void getExpenseSummaryOmitsZeroSpendingCategories() {
+        trip.setCurrency("PLN");
+        trip.setBudget(1000.0);
+        trip.addExpense(new Expense("e1", "Food", 100.0, "dinner", "2026-08-01T12:00:00Z"));
+        trip.addExpense(new Expense("e2", "Accommodation", 0.0, "hotel", "2026-08-01T12:00:00Z"));
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        ExpenseSummaryResponse result = tripService.getExpenseSummary("t1", user);
+
+        assertEquals(1, result.categories().size());
+        assertEquals("Food", result.categories().get(0).category());
+        assertEquals(100.0, result.totalSpent(), 0.001);
+    }
+
+    @Test
+    void getExpenseSummaryReturnsEmptyCategoriesWhenNoExpenses() {
+        trip.setCurrency("PLN");
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        ExpenseSummaryResponse result = tripService.getExpenseSummary("t1", user);
+
+        assertEquals(0.0, result.totalSpent(), 0.001);
+        assertTrue(result.categories().isEmpty());
+    }
+
+    @Test
+    void getExpenseSummaryThrowsWhenOwnedByOtherUser() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        assertThrows(SecurityException.class, () -> tripService.getExpenseSummary("t1", otherUser));
+    }
+
+    @Test
+    void getExpenseSummaryThrowsWhenNotFound() {
+        when(tripRepository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> tripService.getExpenseSummary("missing", user));
     }
 }

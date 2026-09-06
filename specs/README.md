@@ -10,7 +10,7 @@ review it, then implement against the spec.
 |---|------|--------|
 | 001 | [Account & password management](001-account-management.md) | ✅ Done |
 | 002 | [Trip editing (full CRUD)](002-trip-editing.md) | ✅ Done |
-| 003 | [Expense analytics & category breakdown](003-expense-analytics.md) | ⬜ Proposed |
+| 003 | [Expense analytics & category breakdown](003-expense-analytics.md) | ✅ Done |
 | 004 | [Dashboard search, sort & filter](004-dashboard-search-filter.md) | ⬜ Proposed |
 | 005 | [Packing checklist](005-packing-checklist.md) | ⬜ Proposed |
 | 006 | [Collaborative trip sharing](006-trip-sharing.md) | ⬜ Proposed |
