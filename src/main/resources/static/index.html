@@ -137,6 +137,13 @@
             </svg>
             <span data-i18n="details.back">Back to dashboard</span>
           </button>
+          <button id="edit-trip-button" class="btn btn-secondary" type="button">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            <span data-i18n="details.editTrip">Edit Trip</span>
+          </button>
           <button id="delete-trip-button" class="btn btn-danger" type="button">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -280,6 +287,7 @@
         </div>
         <form id="trip-form">
           <div class="modal-body">
+            <div id="trip-form-error" class="form-error" role="alert" hidden></div>
             <div class="field-group">
               <label data-i18n="trip.name">Trip Name</label>
               <input id="trip-name" name="tripName" type="text" data-i18n-placeholder="trip.namePlaceholder" placeholder="Weekend in Paris" required />
@@ -288,7 +296,7 @@
               <div class="field-group">
                 <label data-i18n="trip.country">Country</label>
                 <div class="searchable-select" id="country-select-wrapper">
-                  <input id="country-search" type="text" data-i18n-placeholder="trip.countryPlaceholder" placeholder="Search country..." autocomplete="off" />
+                  <input id="country-search" type="text" data-i18n-placeholder="trip.countryPlaceholder" placeholder="Search country..." autocomplete="off" required />
                   <input type="hidden" id="trip-country" name="tripCountry" />
                   <div class="searchable-select-dropdown" id="country-dropdown"></div>
                 </div>
@@ -324,7 +332,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" id="reset-trip-button" class="btn btn-secondary" data-i18n="trip.reset">Reset</button>
+            <button type="button" id="cancel-trip-button" class="btn btn-secondary" data-i18n="trip.cancel">Cancel</button>
             <button type="submit" class="btn btn-primary" data-i18n="trip.addTrip">Add Trip</button>
           </div>
         </form>

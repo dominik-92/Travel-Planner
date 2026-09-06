@@ -58,9 +58,13 @@ const statPast = document.getElementById("stat-past");
 const tripModal = document.getElementById("trip-modal");
 const closeTripModalBtn = document.getElementById("close-trip-modal");
 const tripForm = document.getElementById("trip-form");
-const resetTripButton = document.getElementById("reset-trip-button");
+const cancelTripButton = document.getElementById("cancel-trip-button");
+const tripModalTitle = document.getElementById("trip-modal-title");
+const tripFormSubmit = tripForm.querySelector('button[type="submit"]');
+const tripFormError = document.getElementById("trip-form-error");
 
 const backButton = document.getElementById("back-button");
+const editTripButton = document.getElementById("edit-trip-button");
 const deleteTripButton = document.getElementById("delete-trip-button");
 const activeTripCard = document.getElementById("active-trip-card");
 
@@ -112,6 +116,7 @@ let state = {
   currencies: [],
   countries: [],
   defaultCurrency: "PLN",
+  editingTripId: null,
 };
 
 // ---- API / formatting ----------------------------------------------------
@@ -129,8 +134,21 @@ async function fetchJson(url, options) {
     return;
   }
   if (!response.ok) {
-    const errorMessage = await response.text();
-    throw new Error(errorMessage || "Request failed");
+    let code = null;
+    let message = null;
+    try {
+      const data = await response.json();
+      code = data.code || null;
+      message = data.message || null;
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    if (!message) {
+      message = await response.text().catch(() => "");
+    }
+    const error = new Error(message || "Request failed");
+    error.code = code || null;
+    throw error;
   }
   return response.status === 204 ? null : response.json();
 }
@@ -231,18 +249,51 @@ function switchTab(name) {
 // ---- Modal ---------------------------------------------------------------
 
 function openTripModal() {
+  state.editingTripId = null;
+  setTripModalMode("create");
+  hideTripFormError();
   tripModal.classList.add("open");
   document.body.classList.add("modal-open");
   setTimeout(() => document.getElementById("trip-name").focus(), 50);
 }
 
+function openEditTripModal(trip) {
+  if (!trip) return;
+  state.editingTripId = trip.id;
+  setTripModalMode("edit");
+  fillTripForm(trip);
+  hideTripFormError();
+  tripModal.classList.add("open");
+  document.body.classList.add("modal-open");
+  setTimeout(() => document.getElementById("trip-name").focus(), 50);
+}
+
+function setTripModalMode(mode) {
+  const editing = mode === "edit";
+  tripModalTitle.setAttribute("data-i18n", editing ? "trip.editTrip" : "trip.newTrip");
+  tripFormSubmit.setAttribute("data-i18n", editing ? "trip.saveTrip" : "trip.addTrip");
+  I18n.translatePage();
+}
+
+function fillTripForm(trip) {
+  document.getElementById("trip-name").value = trip.name || "";
+  document.getElementById("destination").value = trip.destination || "";
+  document.getElementById("start-date").value = trip.startDate || "";
+  document.getElementById("end-date").value = trip.endDate || "";
+  document.getElementById("budget").value = Number.isFinite(Number(trip.budget)) ? trip.budget : 0;
+  document.getElementById("notes").value = trip.notes || "";
+  tripCountryHidden.value = trip.country || "";
+  countrySearchInput.value = trip.country || "";
+  tripCurrencySelect.value = trip.currency || "PLN";
+}
+
 function closeTripModal() {
   tripModal.classList.remove("open");
   document.body.classList.remove("modal-open");
+  state.editingTripId = null;
+  setTripModalMode("create");
   resetTripForm();
-}
-
-// ---- Confirm -------------------------------------------------------------
+}// ---- Confirm -------------------------------------------------------------
 
 let confirmResolver = null;
 
@@ -536,10 +587,48 @@ function resetTripForm() {
   tripCountryHidden.value = "";
   countrySearchInput.value = "";
   countryDropdown.classList.remove("open");
+  hideTripFormError();
 }
 
-async function createTrip(event) {
-  event.preventDefault();
+// ---- Trip form validation/side effects -----------------------------------
+
+const TRIP_ERROR_KEYS = {
+  NAME_REQUIRED: "trip.error.name",
+  DESTINATION_REQUIRED: "trip.error.destination",
+  COUNTRY_REQUIRED: "trip.error.country",
+  START_DATE_REQUIRED: "trip.error.startDate",
+  END_DATE_REQUIRED: "trip.error.endDate",
+  END_DATE_BEFORE_START: "trip.error.endBeforeStart",
+  BUDGET_REQUIRED: "trip.error.budget",
+};
+
+function tripErrorMessage(code, fallback) {
+  const key = TRIP_ERROR_KEYS[code];
+  return key ? I18n.t(key) : fallback || I18n.t("trip.error.invalid");
+}
+
+function showTripFormError(code, fallback) {
+  tripFormError.textContent = tripErrorMessage(code, fallback);
+  tripFormError.hidden = false;
+}
+
+function hideTripFormError() {
+  tripFormError.hidden = true;
+  tripFormError.textContent = "";
+}
+
+function validateTripFields(name, destination, country, startDate, endDate, budget) {
+  if (!name) return { code: "NAME_REQUIRED" };
+  if (!destination) return { code: "DESTINATION_REQUIRED" };
+  if (!country) return { code: "COUNTRY_REQUIRED" };
+  if (!startDate) return { code: "START_DATE_REQUIRED" };
+  if (!endDate) return { code: "END_DATE_REQUIRED" };
+  if (endDate < startDate) return { code: "END_DATE_BEFORE_START" };
+  if (budget <= 0) return { code: "BUDGET_REQUIRED" };
+  return null;
+}
+
+function buildTripPayload() {
   const formData = new FormData(tripForm);
   const name = formData.get("tripName").trim();
   const destination = formData.get("destination").trim();
@@ -550,11 +639,13 @@ async function createTrip(event) {
   const country = tripCountryHidden.value || "";
   const notes = formData.get("notes").trim();
 
-  if (!name || !destination || !startDate || !endDate) {
-    return;
+  const invalid = validateTripFields(name, destination, country, startDate, endDate, budget);
+  if (invalid) {
+    showTripFormError(invalid.code);
+    return null;
   }
 
-  const trip = {
+  return {
     name,
     destination,
     startDate,
@@ -564,6 +655,12 @@ async function createTrip(event) {
     country,
     notes,
   };
+}
+
+async function createTrip(event) {
+  event.preventDefault();
+  const trip = buildTripPayload();
+  if (!trip) return;
 
   try {
     const created = await fetchJson(API_BASE, {
@@ -576,8 +673,30 @@ async function createTrip(event) {
     renderTrips();
     showToast(I18n.t("toast.tripCreated"));
     openTripDetails(created.id);
-  } catch {
-    showToast(I18n.t("toast.error"), "error");
+  } catch (err) {
+    showTripFormError(err.code, err.message);
+  }
+}
+
+async function updateTrip(event) {
+  event.preventDefault();
+  const trip = buildTripPayload();
+  if (!trip || !state.editingTripId) return;
+
+  try {
+    const updated = await fetchJson(`${API_BASE}/${state.editingTripId}`, {
+      method: "PUT",
+      body: JSON.stringify(trip),
+    });
+    const index = state.trips.findIndex((t) => t.id === state.editingTripId);
+    if (index !== -1) state.trips[index] = updated;
+    closeTripModal();
+    renderStats();
+    renderTrips();
+    renderTripDetails();
+    showToast(I18n.t("toast.tripUpdated"));
+  } catch (err) {
+    showTripFormError(err.code, err.message);
   }
 }
 
@@ -881,13 +1000,17 @@ function bindEvents() {
   newTripButton.addEventListener("click", openTripModal);
   emptyCta.addEventListener("click", openTripModal);
   closeTripModalBtn.addEventListener("click", closeTripModal);
-  resetTripButton.addEventListener("click", resetTripForm);
+  cancelTripButton.addEventListener("click", closeTripModal);
   tripModal.addEventListener("click", (e) => {
     if (e.target === tripModal) closeTripModal();
   });
-  tripForm.addEventListener("submit", createTrip);
+  tripForm.addEventListener("submit", (event) => {
+    if (state.editingTripId) updateTrip(event);
+    else createTrip(event);
+  });
 
   backButton.addEventListener("click", showDashboard);
+  editTripButton.addEventListener("click", () => openEditTripModal(getActiveTrip()));
   deleteTripButton.addEventListener("click", deleteActiveTrip);
 
   tabItinerary.addEventListener("click", () => switchTab("itinerary"));

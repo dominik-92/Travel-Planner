@@ -1,6 +1,6 @@
 # 002 — Trip Editing (Full CRUD)
 
-> **Status**: Proposed
+> **Status**: Done
 
 ## 1. Overview & motivation
 
