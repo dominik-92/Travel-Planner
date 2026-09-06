@@ -97,6 +97,11 @@ class TripServiceTest {
     void createTripGeneratesIdAndTimestamp() {
         Trip newTrip = new Trip();
         newTrip.setName("New Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+        newTrip.setBudget(1000.0);
         when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Trip result = tripService.createTrip(newTrip, user);
@@ -111,6 +116,12 @@ class TripServiceTest {
         Trip existingTrip = new Trip();
         existingTrip.setId("existing-id");
         existingTrip.setCreatedAt("2026-01-01T00:00:00Z");
+        existingTrip.setName("Existing Trip");
+        existingTrip.setDestination("Paris");
+        existingTrip.setCountry("France");
+        existingTrip.setStartDate("2026-08-01");
+        existingTrip.setEndDate("2026-08-10");
+        existingTrip.setBudget(1000.0);
         when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Trip result = tripService.createTrip(existingTrip, user);
@@ -122,12 +133,283 @@ class TripServiceTest {
     @Test
     void createTripSetsDestinationNotesFromNotesWhenNull() {
         Trip newTrip = new Trip();
+        newTrip.setName("New Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+        newTrip.setBudget(1000.0);
         newTrip.setNotes("General notes");
         when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Trip result = tripService.createTrip(newTrip, user);
 
         assertEquals("General notes", result.getDestinationNotes());
+    }
+
+    @Test
+    void createTripRejectsBlankName() {
+        Trip newTrip = new Trip();
+        newTrip.setName(" ");
+        newTrip.setDestination("Paris");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsBlankDestination() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsBlankCountry() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsEndDateBeforeStartDate() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-10");
+        newTrip.setEndDate("2026-08-01");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsNegativeBudget() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+        newTrip.setBudget(-1.0);
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsZeroBudget() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("2026-08-01");
+        newTrip.setEndDate("2026-08-10");
+        newTrip.setBudget(0.0);
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void createTripRejectsBlankDates() {
+        Trip newTrip = new Trip();
+        newTrip.setName("Paris Trip");
+        newTrip.setDestination("Paris");
+        newTrip.setCountry("France");
+        newTrip.setStartDate("");
+        newTrip.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.createTrip(newTrip, user));
+    }
+
+    @Test
+    void updateTripUpdatesMutableFields() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+        when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Trip updates = new Trip();
+        updates.setName("Updated Trip");
+        updates.setDestination("London");
+        updates.setCountry("United Kingdom");
+        updates.setStartDate("2026-09-01");
+        updates.setEndDate("2026-09-15");
+        updates.setBudget(3000.0);
+        updates.setCurrency("GBP");
+        updates.setNotes("New notes");
+
+        Trip result = tripService.updateTrip("t1", updates, user);
+
+        assertEquals("Updated Trip", result.getName());
+        assertEquals("London", result.getDestination());
+        assertEquals("United Kingdom", result.getCountry());
+        assertEquals("2026-09-01", result.getStartDate());
+        assertEquals("2026-09-15", result.getEndDate());
+        assertEquals(3000.0, result.getBudget());
+        assertEquals("GBP", result.getCurrency());
+        assertEquals("New notes", result.getNotes());
+    }
+
+    @Test
+    void updateTripPreservesIdentityItineraryAndExpenses() {
+        ItineraryItem item = new ItineraryItem("i1", 1, "10:00", "Louvre", "Museum");
+        Expense expense = new Expense("e1", "Food", 50.0, "Lunch", "2026-08-01T12:00:00Z");
+        trip.addItineraryItem(item);
+        trip.addExpense(expense);
+        trip.setCreatedAt("2026-01-01T00:00:00Z");
+
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+        when(tripRepository.save(any(Trip.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Trip updates = new Trip();
+        updates.setName("Renamed");
+        updates.setDestination("Paris");
+        updates.setCountry("France");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+        updates.setBudget(2500.0);
+
+        Trip result = tripService.updateTrip("t1", updates, user);
+
+        assertEquals("t1", result.getId());
+        assertEquals("2026-01-01T00:00:00Z", result.getCreatedAt());
+        assertSame(user, result.getUser());
+        assertEquals(1, result.getItinerary().size());
+        assertEquals(1, result.getExpenses().size());
+    }
+
+    @Test
+    void updateTripThrowsWhenNotFound() {
+        when(tripRepository.findById("missing")).thenReturn(Optional.empty());
+
+        Trip updates = new Trip();
+        updates.setName("N");
+        updates.setDestination("D");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(NoSuchElementException.class, () -> tripService.updateTrip("missing", updates, user));
+    }
+
+    @Test
+    void updateTripThrowsWhenOwnedByOtherUser() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("N");
+        updates.setDestination("D");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(SecurityException.class, () -> tripService.updateTrip("t1", updates, otherUser));
+    }
+
+    @Test
+    void updateTripRejectsBlankName() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("  ");
+        updates.setDestination("Paris");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsBlankDestination() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("");
+        updates.setCountry("France");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsBlankCountry() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("Paris");
+        updates.setCountry("  ");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsEndDateBeforeStartDate() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("Paris");
+        updates.setCountry("France");
+        updates.setStartDate("2026-08-10");
+        updates.setEndDate("2026-08-01");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsNegativeBudget() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("Paris");
+        updates.setCountry("France");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+        updates.setBudget(-1.0);
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsZeroBudget() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("Paris");
+        updates.setCountry("France");
+        updates.setStartDate("2026-08-01");
+        updates.setEndDate("2026-08-10");
+        updates.setBudget(0.0);
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
+    }
+
+    @Test
+    void updateTripRejectsBlankDates() {
+        when(tripRepository.findById("t1")).thenReturn(Optional.of(trip));
+
+        Trip updates = new Trip();
+        updates.setName("Paris Trip");
+        updates.setDestination("Paris");
+        updates.setCountry("France");
+        updates.setStartDate("");
+        updates.setEndDate("2026-08-10");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip("t1", updates, user));
     }
 
     @Test

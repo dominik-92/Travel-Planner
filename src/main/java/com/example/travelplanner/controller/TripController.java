@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,6 +48,11 @@ public class TripController {
     @PostMapping
     public Trip createTrip(@RequestBody Trip trip, Authentication authentication) {
         return tripService.createTrip(trip, getAuthenticatedUser(authentication));
+    }
+
+    @PutMapping("/{tripId}")
+    public Trip updateTrip(@PathVariable String tripId, @RequestBody Trip trip, Authentication authentication) {
+        return tripService.updateTrip(tripId, trip, getAuthenticatedUser(authentication));
     }
 
     @DeleteMapping("/{tripId}")

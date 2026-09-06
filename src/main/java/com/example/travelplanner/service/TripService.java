@@ -42,6 +42,7 @@ public class TripService {
     }
 
     public Trip createTrip(Trip trip, User user) {
+        validateTrip(trip);
         if (trip.getId() == null || trip.getId().isBlank()) {
             trip.setId(generateId());
         }
@@ -53,6 +54,48 @@ public class TripService {
         }
         trip.setUser(user);
         return tripRepository.save(trip);
+    }
+
+    public Trip updateTrip(String id, Trip updates, User user) {
+        Trip trip = findByIdAndUser(id, user);
+        validateTrip(updates);
+        trip.setName(updates.getName());
+        trip.setDestination(updates.getDestination());
+        trip.setCountry(updates.getCountry());
+        trip.setStartDate(updates.getStartDate());
+        trip.setEndDate(updates.getEndDate());
+        trip.setBudget(updates.getBudget());
+        trip.setCurrency(updates.getCurrency());
+        trip.setNotes(updates.getNotes());
+        return tripRepository.save(trip);
+    }
+
+    private void validateTrip(Trip trip) {
+        if (trip.getName() == null || trip.getName().isBlank()) {
+            throw validationError("NAME_REQUIRED", "Trip name must not be blank");
+        }
+        if (trip.getDestination() == null || trip.getDestination().isBlank()) {
+            throw validationError("DESTINATION_REQUIRED", "Destination must not be blank");
+        }
+        if (trip.getCountry() == null || trip.getCountry().isBlank()) {
+            throw validationError("COUNTRY_REQUIRED", "Country must not be blank");
+        }
+        if (trip.getStartDate() == null || trip.getStartDate().isBlank()) {
+            throw validationError("START_DATE_REQUIRED", "Start date must not be blank");
+        }
+        if (trip.getEndDate() == null || trip.getEndDate().isBlank()) {
+            throw validationError("END_DATE_REQUIRED", "End date must not be blank");
+        }
+        if (trip.getEndDate().compareTo(trip.getStartDate()) < 0) {
+            throw validationError("END_DATE_BEFORE_START", "End date must not be before start date");
+        }
+        if (trip.getBudget() <= 0) {
+            throw validationError("BUDGET_REQUIRED", "Budget must be greater than zero");
+        }
+    }
+
+    private IllegalArgumentException validationError(String code, String message) {
+        return new IllegalArgumentException(code + "|" + message);
     }
 
     public void deleteTrip(String id, User user) {

@@ -1,6 +1,6 @@
 # 011 — Settings Layout & Preferences
 
-> **Status**: In progress
+> **Status**: Done
 
 ## 1. Overview & motivation
 

@@ -4,6 +4,22 @@ This directory holds feature specifications, written before implementation as
 part of a spec-driven development workflow: define the behaviour and API first,
 review it, then implement against the spec.
 
+## Index
+
+| # | Spec | Status |
+|---|------|--------|
+| 001 | [Account & password management](001-account-management.md) | ✅ Done |
+| 002 | [Trip editing (full CRUD)](002-trip-editing.md) | ✅ Done |
+| 003 | [Expense analytics & category breakdown](003-expense-analytics.md) | ⬜ Proposed |
+| 004 | [Dashboard search, sort & filter](004-dashboard-search-filter.md) | ⬜ Proposed |
+| 005 | [Packing checklist](005-packing-checklist.md) | ⬜ Proposed |
+| 006 | [Collaborative trip sharing](006-trip-sharing.md) | ⬜ Proposed |
+| 007 | [Email reminders for upcoming trips](007-email-reminders.md) | ⬜ Proposed |
+| 008 | [Document attachments](008-document-attachments.md) | ⬜ Proposed |
+| 009 | [Live destination information](009-live-destination-info.md) | ⬜ Proposed |
+| 010 | [API documentation + import/export](010-api-docs-import-export.md) | ⬜ Proposed |
+| 011 | [Settings layout & preferences](011-settings-layout.md) | ✅ Done |
+
 ## Workflow
 
 1. **Propose** — copy `000-template.md` to `NNN-slug.md` with the next
@@ -40,19 +56,3 @@ Every spec follows the template in `000-template.md`:
 5. UI requirements
 6. Non-functional requirements
 7. Out of scope
-
-## Index
-
-| # | Spec |
-|---|------|
-| 001 | [Account & password management](001-account-management.md) |
-| 002 | [Trip editing (full CRUD)](002-trip-editing.md) |
-| 003 | [Expense analytics & category breakdown](003-expense-analytics.md) |
-| 004 | [Dashboard search, sort & filter](004-dashboard-search-filter.md) |
-| 005 | [Packing checklist](005-packing-checklist.md) |
-| 006 | [Collaborative trip sharing](006-trip-sharing.md) |
-| 007 | [Email reminders for upcoming trips](007-email-reminders.md) |
-| 008 | [Document attachments](008-document-attachments.md) |
-| 009 | [Live destination information](009-live-destination-info.md) |
-| 010 | [API documentation + import/export](010-api-docs-import-export.md) |
-| 011 | [Settings layout & preferences](011-settings-layout.md) |

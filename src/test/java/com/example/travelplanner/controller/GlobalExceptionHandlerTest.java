@@ -34,6 +34,16 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, String>> response = handler.handleBadRequest(new IllegalArgumentException("Invalid input"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid input", response.getBody().get("error"));
+        assertEquals("Invalid input", response.getBody().get("message"));
+        assertNull(response.getBody().get("code"));
+    }
+
+    @Test
+    void handleBadRequestSplitsCodeAndMessage() {
+        ResponseEntity<Map<String, String>> response = handler.handleBadRequest(new IllegalArgumentException("END_DATE_BEFORE_START|End date must not be before start date"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("END_DATE_BEFORE_START", response.getBody().get("code"));
+        assertEquals("End date must not be before start date", response.getBody().get("message"));
     }
 }

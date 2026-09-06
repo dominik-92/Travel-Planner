@@ -29,3 +29,5 @@ Spring Boot REST API + vanilla JS frontend for a travel planner. Single Maven mo
 ## Spec-driven workflow
 
 Features are specified in `specs/NNN-slug.md` **before** implementation. Copy `specs/000-template.md`, get review, then implement. See `specs/README.md` for statuses (Proposed / Approved / In progress / Done) and numbering. Add new features this way rather than coding directly.
+
+When a spec's status changes, update it in **both** places: the `> **Status**: ...` line at the top of the spec file **and** the `Status` column of the index table in `specs/README.md`. Keep the two in sync along with the work.
