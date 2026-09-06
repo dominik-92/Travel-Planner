@@ -18,6 +18,7 @@ const confirmOk = document.getElementById("confirm-ok");
 const confirmCancel = document.getElementById("confirm-cancel");
 
 let currencies = [];
+let savedCurrency = "PLN";
 
 function getToken() {
   return localStorage.getItem("token");
@@ -158,7 +159,6 @@ async function loadCurrencies() {
 }
 
 function populateCurrencySelect() {
-  const selected = defaultCurrencySelect.value;
   defaultCurrencySelect.innerHTML = "";
   const lang = I18n.getLanguage();
   currencies.forEach((c) => {
@@ -171,7 +171,7 @@ function populateCurrencySelect() {
         ? c.nameEs
         : c.name;
     option.textContent = `${c.code} - ${displayName}`;
-    if (c.code === selected || (!selected && c.code === "PLN")) option.selected = true;
+    if (c.code === savedCurrency) option.selected = true;
     defaultCurrencySelect.append(option);
   });
 }
@@ -183,7 +183,8 @@ async function loadProfile() {
     document.getElementById("profile-username").value = profile.username || "";
     document.getElementById("profile-email").value = profile.email || "";
     languageSelect.value = profile.language || "en";
-    defaultCurrencySelect.value = profile.currency || "PLN";
+    savedCurrency = profile.currency || "PLN";
+    defaultCurrencySelect.value = savedCurrency;
     usernameDisplay.textContent = profile.username || localStorage.getItem("username") || "";
   } catch {
     // ignore; fields stay editable
@@ -219,6 +220,7 @@ async function handleSaveTravel() {
       method: "PUT",
       body: JSON.stringify({ currency }),
     });
+    savedCurrency = currency;
     storeSession(data);
     showMessage(I18n.t("account.preferencesSaved"), "success");
   } catch (err) {
@@ -357,5 +359,6 @@ confirmModal.addEventListener("click", (e) => {
   }
 
   setupPasswordToggles();
-  await Promise.all([loadProfile(), loadCurrencies()]);
+  await loadProfile();
+  await loadCurrencies();
 })();

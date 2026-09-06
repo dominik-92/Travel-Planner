@@ -1,6 +1,9 @@
 package com.example.travelplanner.service;
 
+import com.example.travelplanner.dto.CategoryExpenseSummary;
+import com.example.travelplanner.dto.ExpenseSummaryResponse;
 import com.example.travelplanner.model.DestinationInfo;
+import com.example.travelplanner.model.ExchangeRate;
 import com.example.travelplanner.model.Expense;
 import com.example.travelplanner.model.ItineraryItem;
 import com.example.travelplanner.model.Trip;
@@ -10,8 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,10 +28,13 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final CurrencyService currencyService;
+    private final ExchangeRateService exchangeRateService;
 
-    public TripService(TripRepository tripRepository, CurrencyService currencyService) {
+    public TripService(TripRepository tripRepository, CurrencyService currencyService,
+                       ExchangeRateService exchangeRateService) {
         this.tripRepository = tripRepository;
         this.currencyService = currencyService;
+        this.exchangeRateService = exchangeRateService;
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +169,101 @@ public class TripService {
         trip.setDestinationNotes(destinationNotes);
         tripRepository.save(trip);
         return trip;
+    }
+
+    @Transactional(readOnly = true)
+    public ExpenseSummaryResponse getExpenseSummary(String tripId, User user) {
+        Trip trip = findByIdAndUser(tripId, user);
+
+        String currency = normalizeCurrency(trip.getCurrency());
+        String reportingCurrency = normalizeCurrency(user.getCurrency());
+
+        Map<String, Double> amountsByCategory = new LinkedHashMap<>();
+        for (Expense expense : trip.getExpenses()) {
+            if (expense.getCategory() == null || expense.getCategory().isBlank()) {
+                continue;
+            }
+            amountsByCategory.merge(expense.getCategory(), expense.getAmount(), Double::sum);
+        }
+
+        double totalSpent = amountsByCategory.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .sum();
+
+        Conversion conversion = resolveConversion(currency, reportingCurrency, trip.getStartDate());
+
+        List<CategoryExpenseSummary> categories = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : amountsByCategory.entrySet()) {
+            double amount = round2(entry.getValue());
+            if (amount <= 0) {
+                continue;
+            }
+            double percentage = trip.getBudget() > 0 ? round2(amount / trip.getBudget() * 100) : 0;
+            Double amountInReporting = conversion.rate() == null
+                    ? null
+                    : round2(amount * conversion.rate());
+            categories.add(new CategoryExpenseSummary(entry.getKey(), amount, percentage, amountInReporting));
+        }
+        categories.sort((a, b) -> Double.compare(b.amount(), a.amount()));
+
+        Double totalInReporting = conversion.rate() == null
+                ? null
+                : round2(totalSpent * conversion.rate());
+
+        return new ExpenseSummaryResponse(
+                currency,
+                reportingCurrency,
+                round2(totalSpent),
+                totalInReporting,
+                conversion.approximate(),
+                conversion.provider(),
+                conversion.rateDate(),
+                categories);
+    }
+
+    private record Conversion(Double rate, Boolean approximate, String provider, String rateDate) {
+    }
+
+    private Conversion resolveConversion(String currency, String reportingCurrency, String startDateStr) {
+        if (currency.equalsIgnoreCase(reportingCurrency)) {
+            return new Conversion(null, null, null, null);
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = parseDate(startDateStr);
+        boolean future = startDate != null && startDate.isAfter(today);
+        LocalDate effectiveDate = (startDate == null || future) ? today : startDate;
+
+        Optional<ExchangeRate> resolved = exchangeRateService.resolve(currency, reportingCurrency, effectiveDate);
+        if (resolved.isEmpty()) {
+            return new Conversion(null, null, null, null);
+        }
+
+        ExchangeRate rate = resolved.get();
+        return new Conversion(
+                rate.rate(),
+                future,
+                rate.provider(),
+                rate.date() != null ? rate.date().toString() : null);
+    }
+
+    private String normalizeCurrency(String code) {
+        return (code == null || code.isBlank()) ? "PLN" : code.trim().toUpperCase();
+    }
+
+    private LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value.substring(0, 10));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private DestinationInfo buildDestinationInfo(String destination) {

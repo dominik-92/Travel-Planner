@@ -1,6 +1,6 @@
 # 003 — Expense Analytics & Category Breakdown
 
-> **Status**: Proposed
+> **Status**: Done
 
 ## 1. Overview & motivation
 
@@ -14,10 +14,20 @@ visualization to improve budget insight.
 - **FR-01** Provide per-category spending totals for a trip (sum of `amount`
   grouped by `category`).
 - **FR-02** Provide the percentage of the trip budget consumed by each category.
-- **FR-03** Provide the PLN-equivalent total per category (using the existing
-  `rateToPln` field) when the trip currency is not PLN.
+- **FR-03** When the user's default (reporting) currency differs from the trip
+  currency, provide the equivalent total (overall and per category) in the
+  reporting currency.
 - **FR-04** Categories with zero spending may be omitted from the response.
 - **FR-05** The owner-only rule applies; non-owners receive `403`.
+- **FR-06** When the reporting currency is `PLN`, NBP exchange rates are used;
+  otherwise Frankfurter is used when it supports both currencies.
+- **FR-07** When the reporting currency equals the trip currency, no conversion
+  is performed and no equivalent values are returned.
+- **FR-08** For past/ongoing trips the rate published on or before the trip
+  start date is used (no `≈`); for future trips the latest available rate is
+  used and results are marked approximate (`≈`).
+- **FR-09** When a conversion rate cannot be obtained, equivalent values are
+  omitted rather than falling back to `1.0`.
 
 ## 3. API endpoints
 
@@ -30,11 +40,15 @@ Example response:
 ```json
 {
   "currency": "EUR",
+  "reportingCurrency": "USD",
   "totalSpent": 540.0,
-  "totalSpentPln": 2300.0,
+  "totalSpentInReportingCurrency": 588.6,
+  "conversionApproximate": false,
+  "conversionProvider": "FRANKFURTER",
+  "conversionRateDate": "2026-08-03",
   "categories": [
-    { "category": "Accommodation", "amount": 300.0, "percentage": 30.0 },
-    { "category": "Food", "amount": 240.0, "percentage": 24.0 }
+    { "category": "Accommodation", "amount": 300.0, "percentage": 30.0, "amountInReportingCurrency": 327.0 },
+    { "category": "Food", "amount": 240.0, "percentage": 24.0, "amountInReportingCurrency": 261.6 }
   ]
 }
 ```
